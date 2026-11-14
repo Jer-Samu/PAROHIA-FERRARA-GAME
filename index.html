@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Pelerinul de la Tismana – Prototip Metroidvania</title>
+  <title>Pelerinul de la Tismana – Metroidvania Ortodox</title>
   <style>
     * {
       box-sizing: border-box;
@@ -14,7 +14,7 @@
       touch-action: none;
     }
     body {
-      background-color: #0b070c;
+      background-color: #070409;
       color: #f4e8d1;
       font-family: 'Georgia', serif;
       overflow: hidden;
@@ -30,19 +30,21 @@
       height: 100vh;
       max-width: 1280px;
       max-height: 720px;
-      background: #120b14;
-      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      background: #100813;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
       overflow: hidden;
+      border: 1px solid #3d281e;
     }
     canvas {
       display: block;
       width: 100%;
       height: 100%;
+      cursor: crosshair;
     }
     /* HUD Superiore */
     #hud {
       position: absolute;
-      top: 14px;
+      top: 12px;
       left: 16px;
       right: 16px;
       display: flex;
@@ -55,29 +57,40 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      background: rgba(15, 8, 18, 0.78);
+      padding: 8px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(201, 154, 69, 0.45);
     }
     .hearts {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       font-size: 22px;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
     }
     .heart {
-      color: #c99a45;
+      color: #e6b84c;
+      text-shadow: 0 0 8px rgba(230, 184, 76, 0.6);
       transition: transform 0.2s, opacity 0.2s;
     }
     .heart.lost {
-      color: #3a2a35;
-      opacity: 0.45;
+      color: #3a2333;
+      text-shadow: none;
+      opacity: 0.4;
       transform: scale(0.85);
     }
-    .relic-badge {
-      font-size: 13px;
-      color: #e6c67c;
-      background: rgba(34, 15, 28, 0.8);
-      border: 1px solid #8c6d3f;
-      padding: 4px 10px;
-      border-radius: 12px;
+    .badges-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 2px;
+    }
+    .badge {
+      font-size: 12px;
+      color: #f4e8d1;
+      background: rgba(58, 22, 38, 0.9);
+      border: 1px solid #c99a45;
+      padding: 3px 8px;
+      border-radius: 8px;
       display: none;
     }
     .hud-right {
@@ -86,114 +99,166 @@
       pointer-events: auto;
     }
     .btn-ui {
-      background: rgba(42, 16, 32, 0.85);
+      background: rgba(38, 14, 28, 0.9);
       color: #f4e8d1;
-      border: 1px solid #8c6d3f;
+      border: 1px solid #c99a45;
       padding: 6px 12px;
       border-radius: 8px;
       font-family: inherit;
       font-size: 13px;
       cursor: pointer;
+      transition: background 0.15s;
     }
-    .btn-ui:active {
+    .btn-ui:hover, .btn-ui:active {
       background: #6b2442;
+    }
+    /* Boss HUD */
+    #bossHud {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 440px;
+      max-width: 60vw;
+      background: rgba(16, 6, 18, 0.9);
+      border: 1px solid #c99a45;
+      border-radius: 8px;
+      padding: 6px 12px;
+      text-align: center;
+      display: none;
+      pointer-events: none;
+      z-index: 12;
+    }
+    #bossName {
+      font-size: 14px;
+      color: #e6c67c;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    .boss-bar-bg {
+      width: 100%;
+      height: 10px;
+      background: #2a1221;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #bossBarFill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #9e2a47, #e04f5f);
+      transition: width 0.15s;
     }
     /* Box Dialoghi */
     #dialogueBox {
       position: absolute;
-      bottom: 24%;
+      bottom: 22%;
       left: 50%;
       transform: translateX(-50%);
-      width: 82%;
-      max-width: 680px;
-      background: rgba(20, 10, 22, 0.94);
+      width: 86%;
+      max-width: 720px;
+      background: rgba(18, 9, 22, 0.96);
       border: 2px solid #c99a45;
       border-radius: 12px;
-      padding: 16px 20px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+      padding: 16px 22px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.9);
       display: none;
-      z-index: 20;
+      z-index: 25;
+      pointer-events: auto;
+      cursor: pointer;
     }
     #dialogueSpeaker {
       color: #e6c67c;
       font-weight: bold;
-      font-size: 15px;
+      font-size: 16px;
       margin-bottom: 6px;
-      letter-spacing: 0.5px;
     }
     #dialogueText {
       font-size: 15px;
-      line-height: 1.45;
+      line-height: 1.5;
       color: #f7efe0;
     }
     #dialogueHint {
       margin-top: 8px;
       font-size: 12px;
-      color: #b59d7e;
+      color: #c99a45;
       text-align: right;
     }
-    /* Controlli Touch Mobile */
+    /* Controlli Touch e Click */
     #touchControls {
       position: absolute;
-      bottom: 16px;
+      bottom: 14px;
       left: 16px;
       right: 16px;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
       pointer-events: none;
-      z-index: 15;
+      z-index: 20;
     }
     .touch-group {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       pointer-events: auto;
     }
     .touch-btn {
-      width: 60px;
-      height: 60px;
+      width: 58px;
+      height: 58px;
       border-radius: 50%;
-      background: rgba(74, 21, 37, 0.42);
-      border: 2px solid rgba(201, 154, 69, 0.55);
+      background: rgba(54, 18, 34, 0.65);
+      border: 2px solid rgba(201, 154, 69, 0.75);
       color: #f4e8d1;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
+      cursor: pointer;
       backdrop-filter: blur(2px);
     }
+    .touch-btn small {
+      font-size: 9px;
+      color: #e6c67c;
+      font-family: sans-serif;
+    }
     .touch-btn.pressed {
-      background: rgba(201, 154, 69, 0.45);
-      transform: scale(0.94);
+      background: rgba(201, 154, 69, 0.65);
+      color: #120916;
+      transform: scale(0.92);
     }
     #btnDash {
-      display: none; /* Appare dopo aver ricevuto il Mătănii */
+      display: none;
       border-color: #6ee7b7;
     }
-    /* Banner Vittoria / Fine Livello 1 */
-    #levelComplete {
+    /* Schermata Vittoria Finale */
+    #victoryScreen {
       position: absolute;
       inset: 0;
-      background: rgba(12, 6, 14, 0.9);
+      background: rgba(10, 5, 13, 0.94);
       display: none;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       text-align: center;
-      padding: 24px;
-      z-index: 30;
+      padding: 28px;
+      z-index: 40;
     }
-    #levelComplete h2 {
+    #victoryScreen h2 {
       color: #e6c67c;
-      font-size: 28px;
-      margin-bottom: 12px;
+      font-size: 32px;
+      margin-bottom: 14px;
     }
-    #levelComplete p {
-      max-width: 520px;
-      line-height: 1.5;
-      margin-bottom: 20px;
-      color: #e2d4be;
+    #victoryScreen p {
+      max-width: 600px;
+      line-height: 1.6;
+      margin-bottom: 18px;
+      color: #f0e2c8;
+      font-size: 16px;
+    }
+    #relicSummary {
+      color: #6ee7b7;
+      margin-bottom: 24px;
+      font-size: 15px;
     }
   </style>
 </head>
@@ -212,319 +277,682 @@
         <span class="heart">✦</span>
         <span class="heart">✦</span>
       </div>
-      <div class="relic-badge" id="relicBadge">📿 Mătănii (Dash)</div>
+      <div class="badges-row">
+        <div class="badge" id="badgeDash">📿 Mătănii (Dash)</div>
+        <div class="badge" id="badgeDoubleJump">🕊️ Hrisov (Salt Dublu)</div>
+        <div class="badge" id="badgeCross">☦️ Crucea Sf. Nicodim</div>
+        <div class="badge" id="badgeGospel">📖 Tetravanghelul (1405)</div>
+      </div>
     </div>
     <div class="hud-right">
-      <button class="btn-ui" id="langToggle">Limba: RO / IT</button>
+      <button class="btn-ui" id="levelSwitchBtn" title="Cambia livello rapidamente per testare">Nivel: 1/3 ⏭</button>
+      <button class="btn-ui" id="langToggle">RO / IT</button>
     </div>
   </div>
 
-  <!-- Dialogo NPC / Interazione -->
+  <!-- Boss HUD -->
+  <div id="bossHud">
+    <div id="bossName">Umbra Deznădejdii și a Mândriei</div>
+    <div class="boss-bar-bg">
+      <div id="bossBarFill"></div>
+    </div>
+  </div>
+
+  <!-- Box Dialoghi -->
   <div id="dialogueBox">
     <div id="dialogueSpeaker">Părintele Duhovnic</div>
     <div id="dialogueText">...</div>
-    <div id="dialogueHint">[E / ✦]</div>
+    <div id="dialogueHint">[E / Click] Închide</div>
   </div>
 
-  <!-- Controlli Touch (per telefono/tablet) -->
+  <!-- Comandi Touch / Mouse a schermo -->
   <div id="touchControls">
     <div class="touch-group">
-      <div class="touch-btn" id="btnLeft">◀</div>
-      <div class="touch-btn" id="btnRight">▶</div>
+      <div class="touch-btn" id="btnLeft">◀<small>A</small></div>
+      <div class="touch-btn" id="btnRight">▶<small>D</small></div>
     </div>
     <div class="touch-group">
-      <div class="touch-btn" id="btnInteract">✦</div>
-      <div class="touch-btn" id="btnDash">⚡</div>
-      <div class="touch-btn" id="btnAttack">⚔</div>
-      <div class="touch-btn" id="btnJump">▲</div>
+      <div class="touch-btn" id="btnInteract">✦<small>E</small></div>
+      <div class="touch-btn" id="btnDash">⚡<small>K</small></div>
+      <div class="touch-btn" id="btnAttack">⚔<small>J</small></div>
+      <div class="touch-btn" id="btnJump">▲<small>Space</small></div>
     </div>
   </div>
 
-  <!-- Schermata Fine Livello 1 -->
-  <div id="levelComplete">
-    <h2 id="endTitle">Ai ajuns la Porțile Mănăstirii Tismana!</h2>
-    <p id="endDesc">Ai învins trândăvia și ai primit darul rugăciunii neîncetate. Urmează Nivelul 2: Interiorul Mănăstirii Sfântul Nicodim.</p>
-    <button class="btn-ui" onclick="location.reload()" style="font-size:16px; padding:10px 20px;">Joacă din nou / Rigioca</button>
+  <!-- Schermata Vittoria -->
+  <div id="victoryScreen">
+    <h2 id="vicTitle">Lumina a biruit întunericul la Tismana!</h2>
+    <p id="vicDesc">Ai parcurs Valea, Biserica Mănăstirii și Peștera Sfântului Nicodim, învingând ispitele și aprinzând lumina credinței.</p>
+    <div id="relicSummary"></div>
+    <button class="btn-ui" onclick="location.reload()" style="font-size:16px; padding:10px 24px;">Joacă din nou / Rigioca</button>
   </div>
 </div>
 
 <script>
 /**
  * ============================================================================
- * 1. CONFIGURAZIONE FACILE (Modifica qui i numeri e i testi senza rischi!)
+ * 1. CONFIGURAZIONE E TESTI BILINGUI (RO / IT)
  * ============================================================================
  */
 const CONFIG = {
-  lang: 'ro', // 'ro' oppure 'it'
+  lang: 'ro',
   physics: {
     gravity: 0.62,
-    moveSpeed: 5.2,
-    jumpForce: -13.5,
-    dashSpeed: 15.5,
-    dashDuration: 12, // frame
-    dashCooldown: 38  // frame
+    moveSpeed: 5.4,
+    jumpForce: -13.6,
+    dashSpeed: 16.0,
+    dashDuration: 12,
+    dashCooldown: 34
   },
   player: {
     maxHp: 5,
     attackDuration: 12,
-    attackCooldown: 20,
-    lightRadius: 230
+    attackCooldown: 16
   },
   texts: {
     ro: {
-      levelName: "Nivelul 1: Valea și Zidurile Tismanei",
-      monkName: "Părintele Duhovnic",
-      monkBefore: "Pace ție, pelerinule! Prăpastia din față este prea largă pentru puterile tale omenești. Primește aceste Mătănii: cu rugăciune și avânt (Tasta K / Shift / ⚡) vei trece dincolo spre Mănăstirea Sfântului Nicodim.",
-      monkAfter: "Folosește avântul rugăciunii (K / Shift / ⚡) în aer pentru a traversa prăpastia!",
-      candleSaved: "Sfeșnic aprins: Credința și puterile ți-au fost reînnoite.",
-      relicLabel: "📿 Mătănii: Avântul Rugăciunii (K / ⚡)",
-      controlsHint: "PC: A/D Mișcare | Spațiu Salt | J Atac | K Dash | E Vorbește",
-      endTitle: "Ai ajuns la Porțile Mănăstirii Tismana!",
-      endDesc: "Ai biruit umbrele lenei și ai trecut prăpastia cu ajutorul rugăciunii. Pregătește-te pentru Nivelul 2: Biserica și Chiliile Mănăstirii!"
+      lvl1: "Nivelul 1: Valea și Zidurile Tismanei",
+      lvl2: "Nivelul 2: Interiorul Mănăstirii Sfântul Nicodim",
+      lvl3: "Nivelul 3: Peștera Sfântului Nicodim",
+      promptCandle: "[E] Aprinde Sfeșnicul (Checkpoint)",
+      promptTalk: "[E] Vorbește",
+      promptRead: "[E] Citește",
+      promptRelic: "[E] Culege Odorul Sfânt",
+      promptDoor: "[E] Intră",
+      candleLitMsg: "✦ Sfeșnic aprins! Viața și lumina au fost reînnoite.",
+      doorLockedScroll: "Poarta spre Peșteră este încuiată! Caută Hrisovul de Întemeiere sus în arhivă.",
+      monk1Name: "Părintele Duhovnic",
+      monk1Text: "Pace ție, frate pelerin! Prăpastia din față îți taie calea spre Mănăstire. Primește aceste Mătănii: cu ele poți face Avântul Rugăciunii (tasta K, Shift sau butonul ⚡) chiar și în aer! De asemenea, dacă lovești în jos în timp ce sari, te poți sprijini pe umbre.",
+      monk2Name: "Starețul Mănăstirii",
+      monk2Text: "Bine ai venit în sfânta Mănăstire Tismana, zidită de Sfântul Nicodim în secolul al XIV-lea! Sus în clopotniță și în scriptoriu se află Hrisovul de Întemeiere și Tetravanghelul. Ferește-te de Mânie (străjerii roșii care te izbesc)!",
+      lore1Title: "Pisania Veche a Tismanei",
+      lore1Text: "«În anul 1377, Sfântul Cuvios Nicodim a ridicat aici, pe stânca de lângă cascadă, o cetate a rugăciunii neîncetate.»",
+      lore2Title: "Scriptoriul Sfântului Nicodim",
+      lore2Text: "«Aici a caligrafiat și ferecat în aur Sfântul Nicodim celebrul Tetravanghel din 1404–1405, cea mai veche carte datată din Țara Românească.»",
+      relicCrossMsg: "☦️ Ai găsit Crucea de plumb a Sfântului Nicodim! (+1 Viață Maximă)",
+      relicGospelMsg: "📖 Ai recuperat Tetravanghelul de la Tismana (1405)! Puterea toiagului a crescut!",
+      relicScrollMsg: "🕊️ Ai găsit Hrisovul! Ai deblocat SALTUL DUBLU și cheia spre Peștera Sfântului Nicodim!",
+      bossName: "Umbra Deznădejdii și a Mândriei",
+      bossHint: "Sfat: Aprinde cele 4 sfeșnice din peșteră [E] pentru a slăbi întunericul Boss-ului!",
+      controlsHint: "Mișcare: A/D sau ◀/▶ | Salt: Space | Atac: J / Z / Click Stânga | Dash: K / Shift | Interacțiune: E",
+      vicTitle: "Lumina a biruit întunericul la Tismana!",
+      vicDesc: "Ai parcurs Valea, Biserica Mănăstirii și Peștera Sfântului Nicodim, învingând ispitele și păstrând vie moștenirea Sfântului Nicodim."
     },
     it: {
-      levelName: "Livello 1: La Valle e le Mura di Tismana",
-      monkName: "Părintele Duhovnic (Padre Spirituale)",
-      monkBefore: "Pace a te, pellegrino! Il burrone davanti a te è troppo ampio per le sole forze umane. Ricevi questo Mătănii: con la preghiera e lo slancio (Tasto K / Shift / ⚡) raggiungerai il Monastero di San Nicodemo.",
-      monkAfter: "Usa lo Slancio della Preghiera (K / Shift / ⚡) in salto per superare il burrone!",
-      candleSaved: "Candela accesa: Fede e salute ripristinate.",
-      relicLabel: "📿 Mătănii: Slancio della Preghiera (K / ⚡)",
-      controlsHint: "PC: A/D Muovi | Spazio Salto | J Attacco | K Dash | E Interagisci",
-      endTitle: "Hai raggiunto le Porte del Monastero di Tismana!",
-      endDesc: "Hai vinto l'accidia e superato il baratro con la forza della preghiera. Preparati per il Livello 2: L'Interno del Monastero!"
+      lvl1: "Livello 1: La Valle e le Mura di Tismana",
+      lvl2: "Livello 2: Interno della Mănăstirea Sfântul Nicodim",
+      lvl3: "Livello 3: La Grotta di San Nicodemo",
+      promptCandle: "[E] Accendi Candela (Checkpoint)",
+      promptTalk: "[E] Parla",
+      promptRead: "[E] Leggi",
+      promptRelic: "[E] Raccogli Reliquia",
+      promptDoor: "[E] Entra",
+      candleLitMsg: "✦ Candela accesa! Salute e posizione salvate.",
+      doorLockedScroll: "La porta per la Grotta è sigillata! Trova la Pergamena di Fondazione in alto nell'archivio.",
+      monk1Name: "Părintele Duhovnic (Padre Spirituale)",
+      monk1Text: "Pace a te, pellegrino! Il grande baratro blocca il sentiero per il Monastero. Ricevi questo Mătănii: ora puoi usare lo Slancio della Preghiera (tasto K, Shift o pulsante ⚡) anche in aria! Inoltre, colpendo mentre sei in salto puoi rimbalzare sui nemici.",
+      monk2Name: "Abate del Monastero",
+      monk2Text: "Benvenuto nella Mănăstirea Tismana, fondata da San Nicodemo nel XIV secolo! In alto tra la torre campanaria e lo scriptorium troverai la Pergamena di Fondazione e il Tetravanghelul. Attento all'Ira (Mânia, le ombre corazzate che caricano)!",
+      lore1Title: "Iscrizione Storica di Tismana",
+      lore1Text: "«Nel 1377 San Nicodemo consacrò su questa roccia sopra la cascata una fortezza di preghiera incessante.»",
+      lore2Title: "Lo Scriptorium di San Nicodemo",
+      lore2Text: "«Qui San Nicodemo miniaturò il celebre Tetravanghelul del 1404–1405, il più antico manoscritto datato della Valacchia.»",
+      relicCrossMsg: "☦️ Hai trovato la Croce di San Nicodemo! (+1 Salute Massima)",
+      relicGospelMsg: "📖 Hai recuperato il Tetravanghelul (1405)! Danno del bastone potenziato!",
+      relicScrollMsg: "🕊️ Hai trovato la Pergamena! Hai sbloccato il DOPPIO SALTO e aperto la porta per la Grotta!",
+      bossName: "L'Ombra della Disperazione e dell'Orgoglio",
+      bossHint: "Consiglio: Accendi le 4 candele nell'arena [E] per indebolire e ferire il Boss!",
+      controlsHint: "Muovi: A/D o Frecce | Salto: Spazio | Attacco: J / Z / Click Sinistro | Dash: K / Shift | Interagisci: E",
+      vicTitle: "La Luce ha vinto le tenebre a Tismana!",
+      vicDesc: "Hai attraversato la Valle, l'Interno del Monastero e la Grotta di San Nicodemo, superando le tentazioni e custodendo i tesori spirituali del Santo."
     }
   }
 };
 
+function t(k) {
+  return CONFIG.texts[CONFIG.lang][k] || k;
+}
+
 /**
  * ============================================================================
- * 2. INIZIALIZZAZIONE MOTORE E INPUT
+ * 2. STATO DEL GIOCATORE E INPUT (TASTIERA + MOUSE + TOUCH)
  * ============================================================================
  */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 const keys = {};
+let jumpPressedLastFrame = false;
+let currentLevelIndex = 0;
 let dialogueOpen = false;
-let notificationText = "";
-let notificationTimer = 0;
+let bannerMsg = "";
+let bannerTimer = 0;
+let particles = [];
 
-window.addEventListener('keydown', (e) => {
-  keys[e.code] = true;
-  if (e.code === 'KeyE') handleInteract();
-});
-window.addEventListener('keyup', (e) => {
-  keys[e.code] = false;
-});
-
-// Cambio lingua RO / IT
-document.getElementById('langToggle').addEventListener('click', () => {
-  CONFIG.lang = CONFIG.lang === 'ro' ? 'it' : 'ro';
-  updateUI();
-});
-
-function t(key) {
-  return CONFIG.texts[CONFIG.lang][key];
-}
-
-// Collegamento tasti Touch Mobile
-function bindTouch(id, code, isAction = false) {
-  const el = document.getElementById(id);
-  el.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    el.classList.add('pressed');
-    keys[code] = true;
-    if (isAction && code === 'KeyE') handleInteract();
-  });
-  el.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    el.classList.remove('pressed');
-    keys[code] = false;
-  });
-}
-bindTouch('btnLeft', 'ArrowLeft');
-bindTouch('btnRight', 'ArrowRight');
-bindTouch('btnJump', 'Space');
-bindTouch('btnAttack', 'KeyJ');
-bindTouch('btnDash', 'KeyK');
-bindTouch('btnInteract', 'KeyE', true);
-
-/**
- * ============================================================================
- * 3. DATI DEL LIVELLO 1 (Piattaforme, Candele, Monaco, Nemici)
- * ============================================================================
- */
-const level = {
-  width: 3400,
-  height: 720,
-  platforms: [
-    // Terreno iniziale (Valle)
-    { x: 0, y: 580, w: 950, h: 140 },
-    // Piattaforme rialzate bosco
-    { x: 320, y: 460, w: 180, h: 24 },
-    { x: 580, y: 390, w: 200, h: 24 },
-    // Secondo tratto prima del grande burrone
-    { x: 1030, y: 580, w: 820, h: 140 },
-    { x: 1250, y: 470, w: 170, h: 24 },
-    // --- GRANDE BURRONE (x: 1850 -> 2230): richiede il Dash (Mătănii) ---
-    // Altopiano del Monastero dopo il burrone
-    { x: 2230, y: 580, w: 1170, h: 140 },
-    { x: 2480, y: 460, w: 190, h: 24 },
-    { x: 2760, y: 370, w: 210, h: 24 }
-  ],
-  candles: [
-    { x: 150, y: 580, lit: true },
-    { x: 1420, y: 580, lit: false }
-  ],
-  monk: {
-    x: 1740,
-    y: 580,
-    w: 44,
-    h: 78,
-    gaveRelic: false
-  },
-  portal: {
-    x: 3180,
-    y: 430,
-    w: 90,
-    h: 150
-  }
-};
-
-let enemies = [];
-function spawnEnemies() {
-  enemies = [
-    // Lenea (Accidia) - ombre lente che pattugliano
-    { x: 640, y: 530, w: 42, h: 50, vx: 1.3, minX: 520, maxX: 880, hp: 2, maxHp: 2, hurtTimer: 0, name: 'Lenea' },
-    { x: 1200, y: 530, w: 42, h: 50, vx: 1.5, minX: 1060, maxX: 1360, hp: 2, maxHp: 2, hurtTimer: 0, name: 'Lenea' },
-    { x: 2600, y: 530, w: 46, h: 54, vx: 1.8, minX: 2350, maxX: 2950, hp: 3, maxHp: 3, hurtTimer: 0, name: 'Îndoiala' }
-  ];
-}
-
-/**
- * ============================================================================
- * 4. STATO DEL GIOCATORE (CREDINCIOȘ)
- * ============================================================================
- */
 const player = {
-  x: 120,
-  y: 480,
-  w: 36,
-  h: 64,
-  vx: 0,
-  vy: 0,
-  facing: 1, // 1 destra, -1 sinistra
+  x: 100, y: 480, w: 34, h: 60,
+  vx: 0, vy: 0,
+  facing: 1,
   onGround: false,
-  hp: CONFIG.player.maxHp,
+  hp: 5,
+  maxHp: 5,
+  damage: 1,
   invulnTimer: 0,
-  // Attacco Toiag
+  // Attacco
   attackTimer: 0,
   attackCooldown: 0,
-  // Abilità Metroidvania: Dash (Mătănii)
+  attackDir: 'front', // 'front' o 'down'
+  // Abilità Metroidvania
   hasDash: false,
+  hasDoubleJump: false,
+  hasCross: false,
+  hasGospel: false,
+  jumpsLeft: 1,
   canAirDash: true,
   dashTimer: 0,
   dashCooldown: 0,
   // Checkpoint
-  spawnX: 150,
-  spawnY: 500
+  spawnLevel: 0,
+  spawnX: 100,
+  spawnY: 480
 };
 
-spawnEnemies();
-updateUI();
+// Eventi Tastiera
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+    e.preventDefault();
+  }
+  if (e.code === 'KeyE' || e.code === 'KeyF' || e.code === 'Enter') {
+    triggerInteraction();
+  }
+  if (e.code === 'KeyJ' || e.code === 'KeyZ') {
+    triggerAttack();
+  }
+  if (e.code === 'KeyK' || e.code === 'KeyX' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+    triggerDash();
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
+
+// Click sinistro sul canvas per attaccare (o chiudere dialogo)
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 0) {
+    if (dialogueOpen) {
+      closeDialogue();
+    } else {
+      triggerAttack();
+    }
+  }
+});
+
+document.getElementById('dialogueBox').addEventListener('click', closeDialogue);
+
+// Funzione universale per bottoni a schermo (funziona sia con Touch che con Mouse su Mac/PC)
+function bindScreenButton(id, keyCode, onPressCallback) {
+  const el = document.getElementById(id);
+  const press = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.add('pressed');
+    if (keyCode) keys[keyCode] = true;
+    if (onPressCallback) onPressCallback();
+  };
+  const release = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.remove('pressed');
+    if (keyCode) keys[keyCode] = false;
+  };
+  el.addEventListener('touchstart', press, { passive: false });
+  el.addEventListener('touchend', release, { passive: false });
+  el.addEventListener('touchcancel', release, { passive: false });
+  el.addEventListener('mousedown', press);
+  el.addEventListener('mouseup', release);
+  el.addEventListener('mouseleave', release);
+}
+
+bindScreenButton('btnLeft', 'ArrowLeft');
+bindScreenButton('btnRight', 'ArrowRight');
+bindScreenButton('btnJump', 'Space');
+bindScreenButton('btnAttack', null, triggerAttack);
+bindScreenButton('btnDash', null, triggerDash);
+bindScreenButton('btnInteract', null, triggerInteraction);
+
+document.getElementById('langToggle').addEventListener('click', () => {
+  CONFIG.lang = CONFIG.lang === 'ro' ? 'it' : 'ro';
+  updateHUD();
+});
+
+// Pulsante rapido per testare subito tutti e 3 i livelli
+document.getElementById('levelSwitchBtn').addEventListener('click', () => {
+  const next = (currentLevelIndex + 1) % 3;
+  if (next >= 1) player.hasDash = true;
+  if (next >= 2) player.hasDoubleJump = true;
+  loadLevel(next);
+  updateHUD();
+});
 
 /**
  * ============================================================================
- * 5. INTERAZIONI (MONACO, CANDELE, DIALOGHI)
+ * 3. DEFINIZIONE DEI 3 LIVELLI COMPLETI
  * ============================================================================
  */
-function handleInteract() {
-  if (dialogueOpen) {
-    dialogueOpen = false;
-    document.getElementById('dialogueBox').style.display = 'none';
-    return;
-  }
+const LEVELS = [
+  // --------------------------------------------------------------------------
+  // LIVELLO 1: LA VALLE E LE MURA DI TISMANA
+  // --------------------------------------------------------------------------
+  {
+    nameKey: 'lvl1',
+    theme: 'valley',
+    width: 4400,
+    height: 720,
+    startX: 110,
+    startY: 500,
+    platforms: [
+      // Sentiero iniziale
+      { x: 0, y: 580, w: 920, h: 140 },
+      { x: 260, y: 470, w: 170, h: 22 },
+      { x: 500, y: 380, w: 200, h: 22 },
+      // Cripta segreta in alto a sinistra per la Croce di San Nicodemo
+      { x: 80, y: 270, w: 260, h: 22 },
+      // Ponte sopra il torrente
+      { x: 990, y: 550, w: 230, h: 26 },
+      // Sperone roccioso centrale
+      { x: 1290, y: 580, w: 1050, h: 140 },
+      { x: 1450, y: 460, w: 190, h: 22 },
+      { x: 1700, y: 360, w: 220, h: 22 },
+      { x: 1980, y: 450, w: 170, h: 22 },
+      // --- GRANDE BARATRO (2340 -> 2700): richiede il Dash o Pogo ---
+      // Salita verso le mura fortificate della Mănăstirea
+      { x: 2700, y: 580, w: 1700, h: 140 },
+      { x: 2920, y: 470, w: 200, h: 22 },
+      { x: 3200, y: 380, w: 220, h: 22 },
+      { x: 3500, y: 470, w: 190, h: 22 }
+    ],
+    spikes: [
+      { x: 920, y: 690, w: 70, h: 30 },
+      { x: 1220, y: 690, w: 70, h: 30 },
+      { x: 2340, y: 690, w: 360, h: 30 }
+    ],
+    candles: [
+      { x: 180, y: 580, lit: true },
+      { x: 1380, y: 580, lit: false },
+      { x: 2820, y: 580, lit: false }
+    ],
+    npcs: [
+      { x: 2220, y: 580, w: 42, h: 74, nameKey: 'monk1Name', textKey: 'monk1Text', grantDash: true }
+    ],
+    loreTablets: [
+      { x: 3010, y: 470, titleKey: 'lore1Title', textKey: 'lore1Text' }
+    ],
+    relics: [
+      { id: 'cross', x: 160, y: 225, collected: false }
+    ],
+    enemiesTemplate: [
+      { type: 'lenea', x: 600, y: 530, minX: 420, maxX: 860 },
+      { type: 'indoiala', x: 1100, y: 420, minX: 960, maxX: 1250 },
+      { type: 'lenea', x: 1620, y: 530, minX: 1420, maxX: 1950 },
+      { type: 'indoiala', x: 1800, y: 260, minX: 1650, maxX: 2050 },
+      { type: 'lenea', x: 3150, y: 530, minX: 2900, maxX: 3450 },
+      { type: 'mania', x: 3750, y: 524, minX: 3550, maxX: 4050 }
+    ],
+    portal: { x: 4180, y: 430, w: 92, h: 150, targetLevel: 1, requiresScroll: false }
+  },
 
-  // Controllo vicinanza Monaco (Părintele Duhovnic)
-  const distMonk = Math.hypot((player.x + player.w/2) - (level.monk.x + level.monk.w/2), (player.y + player.h/2) - (level.monk.y - 35));
-  if (distMonk < 95) {
-    dialogueOpen = true;
-    const box = document.getElementById('dialogueBox');
-    document.getElementById('dialogueSpeaker').innerText = t('monkName');
-    if (!level.monk.gaveRelic) {
-      level.monk.gaveRelic = true;
-      player.hasDash = true;
-      document.getElementById('dialogueText').innerText = t('monkBefore');
-      document.getElementById('relicBadge').style.display = 'inline-block';
-      document.getElementById('btnDash').style.display = 'flex';
-      updateUI();
-    } else {
-      document.getElementById('dialogueText').innerText = t('monkAfter');
+  // --------------------------------------------------------------------------
+  // LIVELLO 2: INTERNO DELLA MĂNĂSTIREA SFÂNTUL NICODIM DE LA TISMANA
+  // --------------------------------------------------------------------------
+  {
+    nameKey: 'lvl2',
+    theme: 'monastery',
+    width: 4200,
+    height: 720,
+    startX: 120,
+    startY: 500,
+    platforms: [
+      // Pavimento in pietra del Chiostro e della Chiesa
+      { x: 0, y: 590, w: 1650, h: 130 },
+      // Impalcature e gallerie del Chiostro
+      { x: 340, y: 470, w: 220, h: 20 },
+      { x: 640, y: 360, w: 240, h: 20 },
+      { x: 980, y: 460, w: 200, h: 20 },
+      // Navata Centrale e Torre Campanaria (sviluppo verticale)
+      { x: 1300, y: 350, w: 230, h: 20 },
+      { x: 1600, y: 250, w: 250, h: 20 },
+      { x: 1950, y: 250, w: 320, h: 20 }, // Scriptorium / Archivio in alto!
+      // Corridoio basso dopo il fosso interno
+      { x: 1820, y: 590, w: 1150, h: 130 },
+      { x: 2350, y: 470, w: 220, h: 20 },
+      { x: 2660, y: 360, w: 220, h: 20 },
+      // Alta loggia del Tetravanghelul
+      { x: 3020, y: 250, w: 280, h: 20 },
+      // Piazzale interno verso la salita rupestre
+      { x: 3120, y: 590, w: 1080, h: 130 }
+    ],
+    spikes: [
+      { x: 1650, y: 690, w: 170, h: 30 },
+      { x: 2970, y: 690, w: 150, h: 30 }
+    ],
+    candles: [
+      { x: 210, y: 590, lit: true },
+      { x: 1900, y: 590, lit: false },
+      { x: 3250, y: 590, lit: false }
+    ],
+    npcs: [
+      { x: 300, y: 590, w: 42, h: 74, nameKey: 'monk2Name', textKey: 'monk2Text', grantDash: false }
+    ],
+    loreTablets: [
+      { x: 2020, y: 250, titleKey: 'lore2Title', textKey: 'lore2Text' }
+    ],
+    relics: [
+      { id: 'scroll', x: 2180, y: 205, collected: false },
+      { id: 'gospel', x: 3160, y: 205, collected: false }
+    ],
+    enemiesTemplate: [
+      { type: 'mania', x: 800, y: 534, minX: 520, maxX: 1150 },
+      { type: 'indoiala', x: 750, y: 250, minX: 580, maxX: 1020 },
+      { type: 'indoiala', x: 1500, y: 180, minX: 1320, maxX: 1850 },
+      { type: 'mania', x: 2250, y: 534, minX: 1980, maxX: 2650 },
+      { type: 'lenea', x: 2720, y: 310, minX: 2660, maxX: 2860 },
+      { type: 'mania', x: 3580, y: 534, minX: 3320, maxX: 3920 }
+    ],
+    portal: { x: 3980, y: 440, w: 92, h: 150, targetLevel: 2, requiresScroll: true }
+  },
+
+  // --------------------------------------------------------------------------
+  // LIVELLO 3: PEȘTERA SFÂNTULUI NICODIM + BOSS FIGHT FINALE
+  // --------------------------------------------------------------------------
+  {
+    nameKey: 'lvl3',
+    theme: 'cave',
+    width: 3200,
+    height: 720,
+    startX: 100,
+    startY: 500,
+    platforms: [
+      // Ingresso della Grotta
+      { x: 0, y: 590, w: 750, h: 130 },
+      // Cornici rocciose sospese nel buio (richiedono Dash + Doppio Salto)
+      { x: 860, y: 490, w: 160, h: 22 },
+      { x: 1140, y: 390, w: 160, h: 22 },
+      { x: 1430, y: 480, w: 180, h: 22 },
+      // Ponte prima dell'Arena del Boss
+      { x: 1720, y: 590, w: 1480, h: 130 },
+      // Piattaforme dentro l'Arena della Grotta per schivare e accendere candele
+      { x: 2050, y: 450, w: 190, h: 20 },
+      { x: 2420, y: 350, w: 220, h: 20 },
+      { x: 2790, y: 450, w: 190, h: 20 }
+    ],
+    spikes: [
+      { x: 750, y: 690, w: 970, h: 30 }
+    ],
+    candles: [
+      { x: 180, y: 590, lit: true },
+      { x: 1820, y: 590, lit: false },
+      // 4 Candele dell'Arena Boss per purificare l'oscurità
+      { x: 2145, y: 450, lit: false, isBossCandle: true },
+      { x: 2530, y: 350, lit: false, isBossCandle: true },
+      { x: 2885, y: 450, lit: false, isBossCandle: true },
+      { x: 2530, y: 590, lit: false, isBossCandle: true }
+    ],
+    npcs: [],
+    loreTablets: [],
+    relics: [],
+    enemiesTemplate: [
+      { type: 'indoiala', x: 950, y: 350, minX: 800, maxX: 1200 },
+      { type: 'indoiala', x: 1350, y: 320, minX: 1150, maxX: 1600 }
+    ],
+    portal: null
+  }
+];
+
+let activeEnemies = [];
+let boss = null;
+let bossProjectiles = [];
+let interactPrompt = null; // { x, y, text }
+
+/**
+ * ============================================================================
+ * 4. GESTIONE CARICAMENTO LIVELLI E NEMICI
+ * ============================================================================
+ */
+function loadLevel(idx, keepPosition = false) {
+  currentLevelIndex = idx;
+  const lvl = LEVELS[idx];
+  if (!keepPosition) {
+    player.x = lvl.startX;
+    player.y = lvl.startY;
+    player.vx = 0;
+    player.vy = 0;
+    player.spawnLevel = idx;
+    player.spawnX = lvl.startX;
+    player.spawnY = lvl.startY;
+  }
+  spawnLevelEntities();
+  updateHUD();
+  showBanner(t(lvl.nameKey));
+}
+
+function spawnLevelEntities() {
+  const lvl = LEVELS[currentLevelIndex];
+  activeEnemies = lvl.enemiesTemplate.map(e => {
+    if (e.type === 'lenea') {
+      return { ...e, w: 42, h: 50, vx: 1.4, hp: 3, maxHp: 3, hurtTimer: 0, baseY: e.y };
+    } else if (e.type === 'indoiala') {
+      return { ...e, w: 38, h: 38, vx: 2.2, hp: 2, maxHp: 2, hurtTimer: 0, baseY: e.y, phase: Math.random() * 6 };
+    } else if (e.type === 'mania') {
+      return { ...e, w: 48, h: 56, vx: 2.0, hp: 4, maxHp: 4, hurtTimer: 0, baseY: e.y };
     }
-    box.style.display = 'block';
+  });
+
+  bossProjectiles = [];
+  if (currentLevelIndex === 2) {
+    boss = {
+      x: 2650, y: 420, w: 86, h: 110,
+      vx: -2.5, vy: 0,
+      hp: 24, maxHp: 24,
+      hurtTimer: 0,
+      attackTimer: 90,
+      active: false,
+      defeated: false
+    };
+    // Spegni le candele dell'arena all'inizio dello scontro
+    lvl.candles.forEach(c => { if (c.isBossCandle) c.lit = false; });
+  } else {
+    boss = null;
+    document.getElementById('bossHud').style.display = 'none';
+  }
+}
+
+/**
+ * ============================================================================
+ * 5. AZIONI DEL GIOCATORE (ATTACCO, DASH, INTERAZIONE)
+ * ============================================================================
+ */
+function triggerAttack() {
+  if (dialogueOpen) {
+    closeDialogue();
+    return;
+  }
+  if (player.attackCooldown <= 0) {
+    player.attackTimer = CONFIG.player.attackDuration;
+    player.attackCooldown = CONFIG.player.attackCooldown;
+    // Se il giocatore è in aria e preme Giù (S / Freccia Giù), fa un attacco verso il basso (Pogo!)
+    if (!player.onGround && (keys['ArrowDown'] || keys['KeyS'])) {
+      player.attackDir = 'down';
+    } else {
+      player.attackDir = 'front';
+    }
+  }
+}
+
+function triggerDash() {
+  if (dialogueOpen) return;
+  if (player.hasDash && player.dashCooldown <= 0 && player.canAirDash && player.dashTimer <= 0) {
+    player.dashTimer = CONFIG.physics.dashDuration;
+    player.dashCooldown = CONFIG.physics.dashCooldown;
+    if (!player.onGround) player.canAirDash = false;
+    spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#e6c67c', 10);
+  }
+}
+
+function triggerInteraction() {
+  if (dialogueOpen) {
+    closeDialogue();
     return;
   }
 
-  // Controllo vicinanza Candele Checkpoint (Sfeșnic)
-  for (let c of level.candles) {
-    const distC = Math.hypot((player.x + player.w/2) - c.x, (player.y + player.h) - c.y);
-    if (distC < 85) {
+  const lvl = LEVELS[currentLevelIndex];
+  const px = player.x + player.w / 2;
+  const py = player.y + player.h / 2;
+
+  // 1. Interazione con Candele (Sfeșnic)
+  for (let c of lvl.candles) {
+    if (Math.hypot(px - c.x, py - (c.y - 28)) < 95) {
+      const wasUnlit = !c.lit;
       c.lit = true;
+      player.spawnLevel = currentLevelIndex;
       player.spawnX = c.x - player.w / 2;
       player.spawnY = c.y - player.h - 4;
-      player.hp = CONFIG.player.maxHp;
-      spawnEnemies(); // Resetta i nemici come nei Soulslike/Hollow Knight
-      updateUI();
-      showNotification(t('candleSaved'));
+      player.hp = player.maxHp;
+      spawnParticles(c.x, c.y - 50, '#ffcf56', 18);
+
+      // Se è una candela dell'arena Boss, indebolisce il Boss!
+      if (c.isBossCandle && wasUnlit && boss && !boss.defeated) {
+        boss.hp = Math.max(1, boss.hp - 4);
+        boss.hurtTimer = 25;
+        spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ffcf56', 25);
+      }
+
+      updateHUD();
+      showBanner(t('candleLitMsg'));
       return;
     }
   }
+
+  // 2. Interazione con NPC (Monaci)
+  for (let npc of lvl.npcs) {
+    if (Math.hypot(px - (npc.x + npc.w / 2), py - (npc.y - npc.h / 2)) < 105) {
+      if (npc.grantDash && !player.hasDash) {
+        player.hasDash = true;
+        spawnParticles(player.x + player.w / 2, player.y, '#6ee7b7', 20);
+      }
+      updateHUD();
+      openDialogue(t(npc.nameKey), t(npc.textKey));
+      return;
+    }
+  }
+
+  // 3. Interazione con Leggii / Iscrizioni Storiche
+  for (let tab of lvl.loreTablets) {
+    if (Math.hypot(px - tab.x, py - (tab.y - 25)) < 95) {
+      openDialogue(t(tab.titleKey), t(tab.textKey));
+      return;
+    }
+  }
+
+  // 4. Raccolta Reliquie
+  for (let r of lvl.relics) {
+    if (!r.collected && Math.hypot(px - r.x, py - r.y) < 90) {
+      collectRelic(r);
+      return;
+    }
+  }
+
+  // 5. Passaggio Portale Livello Successivo
+  if (lvl.portal && rectIntersect(player, lvl.portal)) {
+    if (lvl.portal.requiresScroll && !player.hasDoubleJump) {
+      showBanner(t('doorLockedScroll'));
+    } else {
+      loadLevel(lvl.portal.targetLevel);
+    }
+  }
 }
 
-function showNotification(msg) {
-  notificationText = msg;
-  notificationTimer = 160;
+function collectRelic(r) {
+  r.collected = true;
+  spawnParticles(r.x, r.y, '#ffcf56', 25);
+  if (r.id === 'cross') {
+    player.hasCross = true;
+    player.maxHp = 6;
+    player.hp = player.maxHp;
+    showBanner(t('relicCrossMsg'));
+  } else if (r.id === 'gospel') {
+    player.hasGospel = true;
+    player.damage = 2;
+    showBanner(t('relicGospelMsg'));
+  } else if (r.id === 'scroll') {
+    player.hasDoubleJump = true;
+    showBanner(t('relicScrollMsg'));
+  }
+  updateHUD();
 }
 
-function updateUI() {
-  const hearts = document.querySelectorAll('#heartsDisplay .heart');
-  hearts.forEach((h, idx) => {
-    if (idx < player.hp) h.classList.remove('lost');
-    else h.classList.add('lost');
-  });
-  document.getElementById('relicBadge').innerText = t('relicLabel');
-  document.getElementById('endTitle').innerText = t('endTitle');
-  document.getElementById('endDesc').innerText = t('endDesc');
+function openDialogue(speaker, text) {
+  dialogueOpen = true;
+  document.getElementById('dialogueSpeaker').innerText = speaker;
+  document.getElementById('dialogueText').innerText = text;
+  document.getElementById('dialogueBox').style.display = 'block';
+}
+
+function closeDialogue() {
+  dialogueOpen = false;
+  document.getElementById('dialogueBox').style.display = 'none';
+}
+
+function showBanner(msg) {
+  bannerMsg = msg;
+  bannerTimer = 190;
+}
+
+function updateHUD() {
+  const container = document.getElementById('heartsDisplay');
+  container.innerHTML = '';
+  for (let i = 0; i < player.maxHp; i++) {
+    const span = document.createElement('span');
+    span.className = 'heart' + (i >= player.hp ? ' lost' : '');
+    span.innerText = '✦';
+    container.appendChild(span);
+  }
+
+  document.getElementById('badgeDash').style.display = player.hasDash ? 'inline-block' : 'none';
+  document.getElementById('btnDash').style.display = player.hasDash ? 'flex' : 'none';
+  document.getElementById('badgeDoubleJump').style.display = player.hasDoubleJump ? 'inline-block' : 'none';
+  document.getElementById('badgeCross').style.display = player.hasCross ? 'inline-block' : 'none';
+  document.getElementById('badgeGospel').style.display = player.hasGospel ? 'inline-block' : 'none';
+  document.getElementById('levelSwitchBtn').innerText = `Nivel: ${currentLevelIndex + 1}/3 ⏭`;
 }
 
 /**
  * ============================================================================
- * 6. LOGICA DI AGGIORNAMENTO (FISICA, COMBATTIMENTO, NEMICI)
+ * 6. LOGICA DI AGGIORNAMENTO (FISICA, NEMICI, BOSS)
  * ============================================================================
  */
 let cameraX = 0;
-let levelFinished = false;
 
 function update() {
-  if (levelFinished) return;
+  const lvl = LEVELS[currentLevelIndex];
+  if (bannerTimer > 0) bannerTimer--;
 
-  if (notificationTimer > 0) notificationTimer--;
+  // Aggiorna particelle
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
 
-  // Se il dialogo è aperto, ferma il movimento
   if (dialogueOpen) return;
 
-  // Cooldown timer
   if (player.invulnTimer > 0) player.invulnTimer--;
   if (player.attackTimer > 0) player.attackTimer--;
   if (player.attackCooldown > 0) player.attackCooldown--;
   if (player.dashCooldown > 0) player.dashCooldown--;
-
-  // Attivazione Dash (Slancio della Preghiera)
-  if (player.hasDash && (keys['KeyK'] || keys['KeyX'] || keys['ShiftLeft']) && player.dashCooldown <= 0 && player.canAirDash && player.dashTimer <= 0) {
-    player.dashTimer = CONFIG.physics.dashDuration;
-    player.dashCooldown = CONFIG.physics.dashCooldown;
-    if (!player.onGround) player.canAirDash = false;
-  }
 
   // Movimento Orizzontale / Dash
   if (player.dashTimer > 0) {
@@ -532,57 +960,61 @@ function update() {
     player.vx = player.facing * CONFIG.physics.dashSpeed;
     player.vy = 0;
   } else {
-    let moveDir = 0;
-    if (keys['ArrowLeft'] || keys['KeyA']) moveDir -= 1;
-    if (keys['ArrowRight'] || keys['KeyD']) moveDir += 1;
+    let dir = 0;
+    if (keys['ArrowLeft'] || keys['KeyA']) dir -= 1;
+    if (keys['ArrowRight'] || keys['KeyD']) dir += 1;
 
-    if (moveDir !== 0) {
-      player.facing = moveDir;
-      player.vx = moveDir * CONFIG.physics.moveSpeed;
+    if (dir !== 0) {
+      player.facing = dir;
+      player.vx = dir * CONFIG.physics.moveSpeed;
     } else {
       player.vx *= 0.78;
       if (Math.abs(player.vx) < 0.2) player.vx = 0;
     }
 
-    // Salto
-    if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.onGround) {
-      player.vy = CONFIG.physics.jumpForce;
-      player.onGround = false;
+    // Gestione Salto e Doppio Salto
+    const jumpPressed = keys['Space'] || keys['ArrowUp'] || keys['KeyW'];
+    if (jumpPressed && !jumpPressedLastFrame) {
+      if (player.onGround) {
+        player.vy = CONFIG.physics.jumpForce;
+        player.onGround = false;
+        player.jumpsLeft = player.hasDoubleJump ? 1 : 0;
+      } else if (player.jumpsLeft > 0) {
+        player.vy = CONFIG.physics.jumpForce * 0.92;
+        player.jumpsLeft--;
+        spawnParticles(player.x + player.w / 2, player.y + player.h, '#e6c67c', 12);
+      }
     }
+    jumpPressedLastFrame = jumpPressed;
 
-    // Gravità
     player.vy += CONFIG.physics.gravity;
     if (player.vy > 15) player.vy = 15;
   }
 
-  // Attacco con Bastone (Toiag)
-  if ((keys['KeyJ'] || keys['KeyZ']) && player.attackCooldown <= 0) {
-    player.attackTimer = CONFIG.player.attackDuration;
-    player.attackCooldown = CONFIG.player.attackCooldown;
-  }
-
-  // Applicazione movimento e collisioni piattaforme
+  // Collisione Orizzontale Piattaforme
   player.x += player.vx;
   if (player.x < 0) player.x = 0;
-  if (player.x + player.w > level.width) player.x = level.width - player.w;
+  if (player.x + player.w > lvl.width) player.x = lvl.width - player.w;
 
-  for (let p of level.platforms) {
+  for (let p of lvl.platforms) {
     if (rectIntersect(player, p)) {
       if (player.vx > 0) player.x = p.x - player.w;
       else if (player.vx < 0) player.x = p.x + p.w;
     }
   }
 
+  // Collisione Verticale Piattaforme
   player.y += player.vy;
   player.onGround = false;
 
-  for (let p of level.platforms) {
+  for (let p of lvl.platforms) {
     if (rectIntersect(player, p)) {
       if (player.vy > 0) {
         player.y = p.y - player.h;
         player.vy = 0;
         player.onGround = true;
         player.canAirDash = true;
+        player.jumpsLeft = player.hasDoubleJump ? 1 : 0;
       } else if (player.vy < 0) {
         player.y = p.y + p.h;
         player.vy = 0;
@@ -590,83 +1022,280 @@ function update() {
     }
   }
 
-  // Caduta nel burrone -> ritorna all'ultima candela accesa
-  if (player.y > level.height + 60) {
-    takeDamage(1, true);
+  // Hitbox del Bastone (Toiag)
+  const atkBox = getAttackHitbox();
+
+  // Controllo Spine (con possibilità di Pogo Jump col bastone verso il basso!)
+  for (let s of lvl.spikes) {
+    if (atkBox && player.attackDir === 'down' && rectIntersect(atkBox, s)) {
+      player.vy = -11.5;
+      player.canAirDash = true;
+      spawnParticles(player.x + player.w / 2, s.y, '#f5deb3', 6);
+    } else if (rectIntersect(player, s)) {
+      damagePlayer(1, true);
+      return;
+    }
   }
 
-  // Hitbox Attacco Bastone
-  const attackBox = getAttackHitbox();
+  // Caduta nel vuoto
+  if (player.y > lvl.height + 60) {
+    damagePlayer(1, true);
+    return;
+  }
+
+  // Raccolta automatica Reliquie al contatto
+  for (let r of lvl.relics) {
+    if (!r.collected && rectIntersect(player, { x: r.x - 18, y: r.y - 18, w: 36, h: 36 })) {
+      collectRelic(r);
+    }
+  }
 
   // Aggiornamento Nemici
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    let e = enemies[i];
+  for (let i = activeEnemies.length - 1; i >= 0; i--) {
+    let e = activeEnemies[i];
     if (e.hurtTimer > 0) e.hurtTimer--;
 
-    e.x += e.vx;
+    if (e.type === 'indoiala') {
+      e.phase += 0.06;
+      e.x += e.vx;
+      e.y = e.baseY + Math.sin(e.phase) * 28;
+    } else if (e.type === 'mania') {
+      // Mânia carica velocemente quando vede il giocatore vicino!
+      const dist = Math.abs((player.x + player.w / 2) - (e.x + e.w / 2));
+      const speedMult = (dist < 260 && Math.abs(player.y - e.y) < 90) ? 2.1 : 1.0;
+      e.x += e.vx * speedMult;
+    } else {
+      e.x += e.vx;
+    }
+
     if (e.x <= e.minX || e.x + e.w >= e.maxX) {
       e.vx *= -1;
     }
 
-    // Danno inflitto al nemico
-    if (attackBox && e.hurtTimer <= 0 && rectIntersect(attackBox, e)) {
-      e.hp -= 1;
-      e.hurtTimer = 14;
-      e.x += player.facing * 18; // knockback
+    // Colpito dal bastone
+    if (atkBox && e.hurtTimer <= 0 && rectIntersect(atkBox, e)) {
+      e.hp -= player.damage;
+      e.hurtTimer = 12;
+      e.x += player.facing * 20;
+      spawnParticles(e.x + e.w / 2, e.y + e.h / 2, '#f5deb3', 10);
+
+      // Rimbalzo Pogo se colpisci verso il basso in aria
+      if (player.attackDir === 'down' || !player.onGround) {
+        player.vy = -10.5;
+        player.canAirDash = true;
+      }
+
       if (e.hp <= 0) {
-        enemies.splice(i, 1);
+        spawnParticles(e.x + e.w / 2, e.y + e.h / 2, '#e04f5f', 18);
+        activeEnemies.splice(i, 1);
         continue;
       }
     }
 
-    // Danno subito dal giocatore
+    // Collisione col giocatore
     if (player.invulnTimer <= 0 && player.dashTimer <= 0 && rectIntersect(player, e)) {
-      takeDamage(1, false);
+      damagePlayer(1, false);
     }
   }
 
-  // Controllo raggiungimento Portale del Monastero (Fine Livello 1)
-  if (rectIntersect(player, level.portal)) {
-    levelFinished = true;
-    document.getElementById('levelComplete').style.display = 'flex';
-  }
+  // Aggiornamento Boss Finale (Livello 3)
+  updateBoss(atkBox);
+
+  // Calcolo Prompt Interazione più vicino da mostrare sopra il personaggio
+  updateInteractionPrompt();
 
   // Telecamera fluida
   const targetCamX = player.x - canvas.width * 0.38;
-  cameraX += (targetCamX - cameraX) * 0.1;
-  cameraX = Math.max(0, Math.min(level.width - canvas.width, cameraX));
+  cameraX += (targetCamX - cameraX) * 0.12;
+  cameraX = Math.max(0, Math.min(lvl.width - canvas.width, cameraX));
 }
 
-function takeDamage(amount, fellInPit) {
+function updateBoss(atkBox) {
+  if (!boss || boss.defeated) return;
+
+  // Attiva il boss quando il giocatore entra nell'arena (x > 1880)
+  if (!boss.active && player.x > 1880) {
+    boss.active = true;
+    document.getElementById('bossHud').style.display = 'block';
+    document.getElementById('bossName').innerText = t('bossName');
+    showBanner(t('bossHint'));
+  }
+
+  if (!boss.active) return;
+
+  if (boss.hurtTimer > 0) boss.hurtTimer--;
+
+  // Movimento Boss nell'arena
+  boss.x += boss.vx;
+  boss.y = 390 + Math.sin(Date.now() * 0.004) * 55;
+  if (boss.x < 1980 || boss.x + boss.w > 3020) {
+    boss.vx *= -1;
+  }
+
+  // Attacco proiettili d'ombra del Boss
+  boss.attackTimer--;
+  if (boss.attackTimer <= 0) {
+    boss.attackTimer = boss.hp < 12 ? 55 : 85;
+    const angle = Math.atan2((player.y + player.h / 2) - (boss.y + boss.h / 2), (player.x + player.w / 2) - (boss.x + boss.w / 2));
+    bossProjectiles.push({
+      x: boss.x + boss.w / 2,
+      y: boss.y + boss.h / 2,
+      vx: Math.cos(angle) * 6.2,
+      vy: Math.sin(angle) * 6.2,
+      r: 12
+    });
+  }
+
+  // Aggiorna proiettili Boss
+  for (let i = bossProjectiles.length - 1; i >= 0; i--) {
+    let p = bossProjectiles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    // Il bastone può distruggere i globi d'ombra!
+    if (atkBox && rectIntersect(atkBox, { x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 })) {
+      spawnParticles(p.x, p.y, '#e6c67c', 8);
+      bossProjectiles.splice(i, 1);
+      continue;
+    }
+    if (player.invulnTimer <= 0 && player.dashTimer <= 0 &&
+        rectIntersect(player, { x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 })) {
+      damagePlayer(1, false);
+      bossProjectiles.splice(i, 1);
+      continue;
+    }
+    if (p.x < 1700 || p.x > 3200 || p.y < 0 || p.y > 720) {
+      bossProjectiles.splice(i, 1);
+    }
+  }
+
+  // Danno del bastone al Boss
+  if (atkBox && boss.hurtTimer <= 0 && rectIntersect(atkBox, boss)) {
+    boss.hp -= player.damage;
+    boss.hurtTimer = 14;
+    spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ffcf56', 14);
+    if (!player.onGround) {
+      player.vy = -11;
+      player.canAirDash = true;
+    }
+  }
+
+  // Contatto corpo a corpo col Boss
+  if (player.invulnTimer <= 0 && player.dashTimer <= 0 && rectIntersect(player, boss)) {
+    damagePlayer(1, false);
+  }
+
+  // Aggiorna barra vita Boss
+  const pct = Math.max(0, (boss.hp / boss.maxHp) * 100);
+  document.getElementById('bossBarFill').style.width = pct + '%';
+
+  if (boss.hp <= 0) {
+    boss.defeated = true;
+    document.getElementById('bossHud').style.display = 'none';
+    spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ffcf56', 50);
+    setTimeout(showVictoryScreen, 1200);
+  }
+}
+
+function showVictoryScreen() {
+  document.getElementById('vicTitle').innerText = t('vicTitle');
+  document.getElementById('vicDesc').innerText = t('vicDesc');
+  const relicsFound = [
+    player.hasDash ? '📿 Mătănii' : '',
+    player.hasDoubleJump ? '🕊️ Hrisovul Tismanei' : '',
+    player.hasCross ? '☦️ Crucea Sf. Nicodim' : '',
+    player.hasGospel ? '📖 Tetravanghelul (1405)' : ''
+  ].filter(Boolean).join('  •  ');
+  document.getElementById('relicSummary').innerText = relicsFound;
+  document.getElementById('victoryScreen').style.display = 'flex';
+}
+
+function updateInteractionPrompt() {
+  interactPrompt = null;
+  const lvl = LEVELS[currentLevelIndex];
+  const px = player.x + player.w / 2;
+  const py = player.y + player.h / 2;
+
+  for (let c of lvl.candles) {
+    if (Math.hypot(px - c.x, py - (c.y - 28)) < 95) {
+      interactPrompt = { x: c.x, y: c.y - 72, text: t('promptCandle') };
+      return;
+    }
+  }
+  for (let npc of lvl.npcs) {
+    if (Math.hypot(px - (npc.x + npc.w / 2), py - (npc.y - npc.h / 2)) < 105) {
+      interactPrompt = { x: npc.x + npc.w / 2, y: npc.y - npc.h - 24, text: t('promptTalk') };
+      return;
+    }
+  }
+  for (let tab of lvl.loreTablets) {
+    if (Math.hypot(px - tab.x, py - (tab.y - 25)) < 95) {
+      interactPrompt = { x: tab.x, y: tab.y - 68, text: t('promptRead') };
+      return;
+    }
+  }
+  if (lvl.portal && rectIntersect(player, lvl.portal)) {
+    interactPrompt = { x: lvl.portal.x + lvl.portal.w / 2, y: lvl.portal.y - 45, text: t('promptDoor') };
+  }
+}
+
+function damagePlayer(amount, respawnAtCandle) {
   player.hp = Math.max(0, player.hp - amount);
   player.invulnTimer = 55;
-  updateUI();
+  spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#e04f5f', 14);
+  updateHUD();
 
-  if (player.hp <= 0 || fellInPit) {
-    if (player.hp <= 0) {
-      player.hp = CONFIG.player.maxHp;
-      spawnEnemies();
-      updateUI();
+  if (player.hp <= 0) {
+    player.hp = player.maxHp;
+    if (currentLevelIndex !== player.spawnLevel) {
+      loadLevel(player.spawnLevel, true);
+    } else {
+      spawnLevelEntities();
     }
     player.x = player.spawnX;
     player.y = player.spawnY;
     player.vx = 0;
     player.vy = 0;
+    updateHUD();
+  } else if (respawnAtCandle) {
+    player.x = player.spawnX;
+    player.y = player.spawnY;
+    player.vx = 0;
+    player.vy = 0;
   } else {
-    player.vy = -7;
+    player.vy = -7.5;
     player.vx = -player.facing * 6;
   }
 }
 
 function getAttackHitbox() {
   if (player.attackTimer <= 0) return null;
-  const reach = 58;
+  if (player.attackDir === 'down') {
+    return {
+      x: player.x - 16,
+      y: player.y + player.h - 6,
+      w: player.w + 32,
+      h: 48
+    };
+  }
+  const reach = 64;
   return {
-    x: player.facing === 1 ? player.x + player.w : player.x - reach,
-    y: player.y + 8,
+    x: player.facing === 1 ? player.x + player.w - 4 : player.x - reach + 4,
+    y: player.y + 4,
     w: reach,
-    h: player.h - 16
+    h: player.h - 8
   };
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 7,
+      vy: (Math.random() - 0.5) * 7 - 1,
+      color,
+      life: 16 + Math.random() * 14
+    });
+  }
 }
 
 function rectIntersect(a, b) {
@@ -678,239 +1307,315 @@ function rectIntersect(a, b) {
 
 /**
  * ============================================================================
- * 7. RENDERING GRAFICO (STILE HOLLOW KNIGHT + ICONOGRAFIA ORTODOSSA)
+ * 7. RENDERING GRAFICO (3 AMBIENTAZIONI: VALLE, MONASTERO, GROTTA)
  * ============================================================================
  */
 function draw() {
-  // Sfondo crepuscolare (gradiente porpora scuro / notte dell'Oltenia)
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  bgGrad.addColorStop(0, '#130918');
-  bgGrad.addColorStop(0.6, '#261124');
-  bgGrad.addColorStop(1, '#120a10');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const lvl = LEVELS[currentLevelIndex];
 
-  // Luna / Aureola dorata sullo sfondo
-  ctx.save();
-  ctx.fillStyle = 'rgba(230, 198, 124, 0.12)';
-  ctx.beginPath();
-  ctx.arc(980 - cameraX * 0.08, 150, 95, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(201, 154, 69, 0.25)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.restore();
-
-  // Silhouette delle Montagne e della Mănăstirea Tismana in lontananza (Parallasse)
-  drawMonasteryBackground();
+  // 1. Sfondo specifico del Livello
+  drawThemeBackground(lvl.theme);
 
   ctx.save();
   ctx.translate(-cameraX, 0);
 
-  // Piattaforme (roccia e muschio scuro)
-  for (let p of level.platforms) {
-    ctx.fillStyle = '#1b131d';
-    ctx.fillRect(p.x, p.y, p.w, p.h);
-    // Bordo superiore dorato/ocra stile incisione
-    ctx.fillStyle = '#5c4632';
-    ctx.fillRect(p.x, p.y, p.w, 6);
-    ctx.strokeStyle = '#0c070d';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(p.x, p.y, p.w, p.h);
+  // 2. Decorazioni Architettoniche di Sfondo (Cascate, Arcate Chiostro, Stalattiti)
+  drawLevelScenery(lvl);
+
+  // 3. Spine nei baratri
+  for (let s of lvl.spikes) {
+    drawSpikes(s);
   }
 
-  // Portale del Monastero (Obiettivo Livello 1)
-  drawPortal(level.portal);
+  // 4. Piattaforme
+  for (let p of lvl.platforms) {
+    drawPlatform(p, lvl.theme);
+  }
 
-  // Candele Votive (Sfeșnic - Checkpoint)
-  for (let c of level.candles) {
+  // 5. Portale di fine livello
+  if (lvl.portal) {
+    drawPortal(lvl.portal);
+  }
+
+  // 6. Leggii / Iscrizioni Storiche
+  for (let tab of lvl.loreTablets) {
+    drawLoreTablet(tab);
+  }
+
+  // 7. Candele Votive (Sfeșnic)
+  for (let c of lvl.candles) {
     drawCandle(c);
   }
 
-  // Monaco (Părintele Duhovnic)
-  drawMonk(level.monk);
+  // 8. Reliquie Sacre
+  for (let r of lvl.relics) {
+    if (!r.collected) drawRelic(r);
+  }
 
-  // Nemici (Tentazioni: Lenea / Îndoiala)
-  for (let e of enemies) {
+  // 9. Monaci (NPC)
+  for (let npc of lvl.npcs) {
+    drawMonk(npc);
+  }
+
+  // 10. Nemici
+  for (let e of activeEnemies) {
     drawEnemy(e);
   }
 
-  // Giocatore (Credincios)
-  drawPlayer();
-
-  // Effetto Fendente Bastone (Toiag)
-  const atk = getAttackHitbox();
-  if (atk) {
-    ctx.save();
-    ctx.strokeStyle = '#f5deb3';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    const cx = player.x + player.w / 2;
-    const cy = player.y + player.h / 2;
-    if (player.facing === 1) {
-      ctx.arc(cx + 10, cy, 48, -0.8, 0.8);
-    } else {
-      ctx.arc(cx - 10, cy, 48, Math.PI - 0.8, Math.PI + 0.8);
+  // 11. Boss Finale e Proiettili (Livello 3)
+  if (boss && !boss.defeated) {
+    drawBoss(boss);
+    for (let bp of bossProjectiles) {
+      ctx.fillStyle = '#e04f5f';
+      ctx.beginPath();
+      ctx.arc(bp.x, bp.y, bp.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffcf56';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
-    ctx.stroke();
-    ctx.restore();
   }
 
-  // Luce dinamica della Lanterna attorno al Pellegrino
-  const lightX = player.x + player.w / 2 + player.facing * 12;
-  const lightY = player.y + 28;
-  const radGrad = ctx.createRadialGradient(lightX, lightY, 10, lightX, lightY, CONFIG.player.lightRadius);
-  radGrad.addColorStop(0, 'rgba(255, 215, 130, 0.22)');
-  radGrad.addColorStop(0.6, 'rgba(201, 154, 69, 0.06)');
-  radGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = radGrad;
-  ctx.beginPath();
-  ctx.arc(lightX, lightY, CONFIG.player.lightRadius, 0, Math.PI * 2);
-  ctx.fill();
+  // 12. Giocatore (Credincios) e Fendente del Bastone
+  drawPlayer();
+  drawAttackSlash();
 
-  ctx.restore();
+  // 13. Particelle
+  for (let pt of particles) {
+    ctx.fillStyle = pt.color;
+    ctx.fillRect(pt.x - 2, pt.y - 2, 4, 4);
+  }
 
-  // Titolo Livello e Comandi in basso
-  ctx.fillStyle = 'rgba(230, 198, 124, 0.75)';
-  ctx.font = '14px Georgia';
-  ctx.fillText(t('levelName'), 18, 68);
+  // 14. Vignettatura / Oscurità Grotta (Livello 3) con cono di luce della Lanterna
+  drawLightingEffect(lvl.theme);
 
-  ctx.fillStyle = 'rgba(244, 232, 209, 0.45)';
-  ctx.font = '12px sans-serif';
-  ctx.fillText(t('controlsHint'), 18, canvas.height - 12);
-
-  // Notifica temporanea (es. Candela accesa)
-  if (notificationTimer > 0) {
+  // 15. Prompt di interazione [E] sopra l'oggetto attivo
+  if (interactPrompt) {
     ctx.save();
-    ctx.fillStyle = 'rgba(20, 10, 22, 0.85)';
-    ctx.strokeStyle = '#c99a45';
-    ctx.fillRect(canvas.width / 2 - 240, 60, 480, 38);
-    ctx.strokeRect(canvas.width / 2 - 240, 60, 480, 38);
-    ctx.fillStyle = '#f4e8d1';
-    ctx.font = '14px Georgia';
+    ctx.font = 'bold 14px Georgia';
+    const textW = ctx.measureText(interactPrompt.text).width + 20;
+    ctx.fillStyle = 'rgba(18, 8, 22, 0.92)';
+    ctx.strokeStyle = '#e6c67c';
+    ctx.lineWidth = 1.5;
+    ctx.fillRect(interactPrompt.x - textW / 2, interactPrompt.y - 20, textW, 28);
+    ctx.strokeRect(interactPrompt.x - textW / 2, interactPrompt.y - 20, textW, 28);
+    ctx.fillStyle = '#ffdf91';
     ctx.textAlign = 'center';
-    ctx.fillText(notificationText, canvas.width / 2, 84);
+    ctx.fillText(interactPrompt.text, interactPrompt.x, interactPrompt.y - 1);
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  // Testi UI fissi
+  ctx.fillStyle = 'rgba(230, 198, 124, 0.85)';
+  ctx.font = 'bold 15px Georgia';
+  ctx.fillText(t(lvl.nameKey), 18, 98);
+
+  ctx.fillStyle = 'rgba(244, 232, 209, 0.55)';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(t('controlsHint'), 18, canvas.height - 82);
+
+  // Banner Notifica Centrale
+  if (bannerTimer > 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(22, 10, 26, 0.92)';
+    ctx.strokeStyle = '#c99a45';
+    ctx.lineWidth = 2;
+    ctx.fillRect(canvas.width / 2 - 290, 74, 580, 42);
+    ctx.strokeRect(canvas.width / 2 - 290, 74, 580, 42);
+    ctx.fillStyle = '#f8ecd4';
+    ctx.font = 'bold 15px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(bannerMsg, canvas.width / 2, 100);
     ctx.restore();
   }
 }
 
-function drawMonasteryBackground() {
-  const parallax = cameraX * 0.25;
-  ctx.fillStyle = '#180d1c';
-  // Profilo montagne
-  ctx.beginPath();
-  ctx.moveTo(0, 580);
-  ctx.lineTo(250 - parallax * 0.3, 310);
-  ctx.lineTo(650 - parallax * 0.3, 420);
-  ctx.lineTo(1100 - parallax * 0.3, 240);
-  ctx.lineTo(1600 - parallax * 0.3, 580);
-  ctx.fill();
-
-  // Silhouette torri di Mănăstirea Tismana in lontananza
-  const mx = 1020 - parallax;
-  ctx.fillStyle = '#1f1024';
-  ctx.fillRect(mx, 250, 160, 180);
-  // Cupola bizantina
-  ctx.beginPath();
-  ctx.arc(mx + 80, 250, 42, Math.PI, 0);
-  ctx.fill();
-  // Croce ortodossa sulla cupola
-  ctx.strokeStyle = '#8c6d3f';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(mx + 80, 185);
-  ctx.lineTo(mx + 80, 212);
-  ctx.moveTo(mx + 72, 194);
-  ctx.lineTo(mx + 88, 194);
-  ctx.stroke();
-}
-
-function drawPlayer() {
-  ctx.save();
-  if (player.invulnTimer > 0 && Math.floor(player.invulnTimer / 4) % 2 === 0) {
-    ctx.globalAlpha = 0.45;
+function drawThemeBackground(theme) {
+  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  if (theme === 'valley') {
+    grad.addColorStop(0, '#120817');
+    grad.addColorStop(0.55, '#281226');
+    grad.addColorStop(1, '#100811');
+  } else if (theme === 'monastery') {
+    grad.addColorStop(0, '#1c0c16');
+    grad.addColorStop(0.5, '#361423');
+    grad.addColorStop(1, '#160911');
+  } else {
+    grad.addColorStop(0, '#07050a');
+    grad.addColorStop(0.6, '#120b18');
+    grad.addColorStop(1, '#050307');
   }
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const px = player.x;
-  const py = player.y;
-
-  // Mantello scuro del Credincios (stile Hollow Knight)
-  ctx.fillStyle = player.dashTimer > 0 ? '#e6c67c' : '#2a1a2e';
-  ctx.beginPath();
-  ctx.moveTo(px + player.w / 2, py + 18);
-  ctx.lineTo(px + player.w + 4, py + player.h);
-  ctx.lineTo(px - 4, py + player.h);
-  ctx.closePath();
-  ctx.fill();
-
-  // Cappuccio / Testa
-  ctx.fillStyle = '#e8dcc8';
-  ctx.beginPath();
-  ctx.arc(px + player.w / 2, py + 15, 12, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Occhi espressivi
-  ctx.fillStyle = '#120b14';
-  const eyeOffset = player.facing === 1 ? 4 : -4;
-  ctx.fillRect(px + player.w / 2 + eyeOffset - 2, py + 13, 3, 5);
-
-  // Bastone da pellegrino (Toiag)
-  ctx.strokeStyle = '#b88b4a';
-  ctx.lineWidth = 3;
-  const staffX = player.facing === 1 ? px + player.w + 2 : px - 2;
-  ctx.beginPath();
-  ctx.moveTo(staffX, py + 12);
-  ctx.lineTo(staffX + player.facing * 4, py + player.h);
-  ctx.stroke();
-
-  ctx.restore();
-}
-
-function drawMonk(m) {
-  // Veste monastica (Rasa)
-  ctx.fillStyle = '#140e17';
-  ctx.fillRect(m.x, m.y - m.h, m.w, m.h);
-  // Barba bianca e volto
-  ctx.fillStyle = '#d9cbb8';
-  ctx.beginPath();
-  ctx.arc(m.x + m.w / 2, m.y - m.h + 14, 11, 0, Math.PI * 2);
-  ctx.fill();
-  // Klobuk / Copricapo monastico
-  ctx.fillStyle = '#0d090f';
-  ctx.fillRect(m.x + 9, m.y - m.h - 4, 26, 12);
-
-  // Simbolo interazione sopra il monaco
-  ctx.fillStyle = '#e6c67c';
-  ctx.font = '14px Georgia';
-  ctx.textAlign = 'center';
-  ctx.fillText('✦ [E]', m.x + m.w / 2, m.y - m.h - 14);
-}
-
-function drawCandle(c) {
-  // Sfeșnic (Portacandela)
-  ctx.fillStyle = '#8c6d3f';
-  ctx.fillRect(c.x - 4, c.y - 34, 8, 34);
-  ctx.fillRect(c.x - 12, c.y - 4, 24, 4);
-  // Candela
-  ctx.fillStyle = '#f4e8d1';
-  ctx.fillRect(c.x - 3, c.y - 48, 6, 14);
-
-  if (c.lit) {
-    // Fiamma dorata
-    ctx.fillStyle = '#ffcf56';
+  // Parallasse Montagne / Cupole / Volte
+  const p = cameraX * 0.2;
+  if (theme === 'valley') {
+    ctx.fillStyle = 'rgba(230, 198, 124, 0.12)';
     ctx.beginPath();
-    ctx.arc(c.x, c.y - 54, 6 + Math.sin(Date.now() * 0.015) * 1.5, 0, Math.PI * 2);
+    ctx.arc(1020 - p * 0.4, 140, 85, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Silhouette Mănăstirea Tismana sulla roccia
+    const mx = 1150 - p;
+    ctx.fillStyle = '#1b0d1e';
+    ctx.fillRect(mx, 230, 180, 220);
+    ctx.beginPath();
+    ctx.arc(mx + 90, 230, 46, Math.PI, 0);
+    ctx.fill();
+    ctx.strokeStyle = '#8c6d3f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(mx + 90, 160);
+    ctx.lineTo(mx + 90, 190);
+    ctx.moveTo(mx + 80, 170);
+    ctx.lineTo(mx + 100, 170);
+    ctx.stroke();
+  } else if (theme === 'monastery') {
+    // Arcate bizantine e icone dorate sullo sfondo del monastero
+    ctx.strokeStyle = 'rgba(201, 154, 69, 0.18)';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 12; i++) {
+      const ax = i * 260 - (p % 260);
+      ctx.beginPath();
+      ctx.arc(ax + 130, 260, 90, Math.PI, 0);
+      ctx.lineTo(ax + 220, 600);
+      ctx.moveTo(ax + 40, 260);
+      ctx.lineTo(ax + 40, 600);
+      ctx.stroke();
+      // Aureola icona
+      ctx.fillStyle = 'rgba(230, 184, 76, 0.08)';
+      ctx.beginPath();
+      ctx.arc(ax + 130, 260, 28, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawLevelScenery(lvl) {
+  if (lvl.theme === 'valley') {
+    // Cascata animata di Tismana
+    ctx.fillStyle = 'rgba(130, 190, 235, 0.16)';
+    const offset = (Date.now() * 0.15) % 40;
+    ctx.fillRect(930, 0, 55, 720);
+    ctx.fillStyle = 'rgba(200, 235, 255, 0.25)';
+    for (let y = offset; y < 720; y += 40) {
+      ctx.fillRect(942, y, 30, 18);
+    }
+  } else if (lvl.theme === 'cave') {
+    // Stalattiti nella Grotta di San Nicodemo
+    ctx.fillStyle = '#181021';
+    for (let x = 100; x < lvl.width; x += 180) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 40, 95 + (x % 50));
+      ctx.lineTo(x + 80, 0);
+      ctx.fill();
+    }
+  }
+}
+
+function drawPlatform(p, theme) {
+  ctx.fillStyle = theme === 'monastery' ? '#241421' : '#19111c';
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  ctx.fillStyle = theme === 'monastery' ? '#9e7a43' : '#634b35';
+  ctx.fillRect(p.x, p.y, p.w, 6);
+  ctx.strokeStyle = '#09050a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(p.x, p.y, p.w, p.h);
+}
+
+function drawSpikes(s) {
+  ctx.fillStyle = '#523442';
+  const step = 18;
+  for (let x = s.x; x < s.x + s.w; x += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, s.y + s.h);
+    ctx.lineTo(x + step / 2, s.y);
+    ctx.lineTo(x + step, s.y + s.h);
     ctx.fill();
   }
 }
 
+function drawCandle(c) {
+  // Base Sfeșnic
+  ctx.fillStyle = '#9c7840';
+  ctx.fillRect(c.x - 4, c.y - 36, 8, 36);
+  ctx.fillRect(c.x - 14, c.y - 5, 28, 5);
+  // Cera
+  ctx.fillStyle = '#f4e8d1';
+  ctx.fillRect(c.x - 3, c.y - 52, 6, 16);
+
+  if (c.lit) {
+    const r = 7 + Math.sin(Date.now() * 0.018) * 1.8;
+    ctx.fillStyle = '#ffcf56';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y - 58, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255, 207, 86, 0.22)';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y - 58, r * 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawLoreTablet(tab) {
+  // Leggio / Analoghion ortodosso
+  ctx.fillStyle = '#5c3c24';
+  ctx.fillRect(tab.x - 14, tab.y - 44, 28, 44);
+  ctx.fillStyle = '#c99a45';
+  ctx.fillRect(tab.x - 18, tab.y - 48, 36, 8);
+}
+
+function drawRelic(r) {
+  const floatY = r.y + Math.sin(Date.now() * 0.006) * 6;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 215, 110, 0.25)';
+  ctx.beginPath();
+  ctx.arc(r.x, floatY, 26, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#ffdf80';
+  ctx.lineWidth = 3;
+  if (r.id === 'cross') {
+    ctx.beginPath();
+    ctx.moveTo(r.x, floatY - 14);
+    ctx.lineTo(r.x, floatY + 14);
+    ctx.moveTo(r.x - 9, floatY - 4);
+    ctx.lineTo(r.x + 9, floatY - 4);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = '#b8334a';
+    ctx.fillRect(r.x - 12, floatY - 14, 24, 28);
+    ctx.strokeRect(r.x - 12, floatY - 14, 24, 28);
+  }
+  ctx.restore();
+}
+
+function drawMonk(m) {
+  ctx.fillStyle = '#150e18';
+  ctx.fillRect(m.x, m.y - m.h, m.w, m.h);
+  // Epitrachelion dorato
+  ctx.fillStyle = '#b88b4a';
+  ctx.fillRect(m.x + m.w / 2 - 5, m.y - m.h + 24, 10, m.h - 26);
+  // Volto e barba
+  ctx.fillStyle = '#e0d2be';
+  ctx.beginPath();
+  ctx.arc(m.x + m.w / 2, m.y - m.h + 15, 11, 0, Math.PI * 2);
+  ctx.fill();
+  // Klobuk
+  ctx.fillStyle = '#09060b';
+  ctx.fillRect(m.x + 8, m.y - m.h - 4, 26, 12);
+}
+
 function drawEnemy(e) {
   ctx.save();
-  ctx.fillStyle = e.hurtTimer > 0 ? '#ffffff' : '#09050a';
-  ctx.strokeStyle = '#6b2442';
+  ctx.fillStyle = e.hurtTimer > 0 ? '#ffffff' : (e.type === 'mania' ? '#38101e' : '#0b060e');
+  ctx.strokeStyle = e.type === 'mania' ? '#e04f5f' : '#8c6d3f';
   ctx.lineWidth = 2;
 
-  // Corpo ombra tentazione
   ctx.beginPath();
   ctx.arc(e.x + e.w / 2, e.y + e.h / 2, e.w / 2, Math.PI, 0);
   ctx.lineTo(e.x + e.w, e.y + e.h);
@@ -919,47 +1624,152 @@ function drawEnemy(e) {
   ctx.fill();
   ctx.stroke();
 
-  // Occhi cremisi
-  ctx.fillStyle = '#e04f5f';
-  ctx.fillRect(e.x + 11, e.y + 18, 5, 4);
-  ctx.fillRect(e.x + e.w - 16, e.y + 18, 5, 4);
+  // Occhi
+  ctx.fillStyle = e.type === 'indoiala' ? '#6ee7b7' : '#ff4d5e';
+  ctx.fillRect(e.x + 10, e.y + 16, 5, 5);
+  ctx.fillRect(e.x + e.w - 15, e.y + 16, 5, 5);
+  ctx.restore();
+}
+
+function drawBoss(b) {
+  ctx.save();
+  ctx.fillStyle = b.hurtTimer > 0 ? '#ffffff' : '#1a081f';
+  ctx.strokeStyle = '#e04f5f';
+  ctx.lineWidth = 3;
+
+  // Silhouette imponente con corona dell'Orgoglio
+  ctx.beginPath();
+  ctx.arc(b.x + b.w / 2, b.y + 42, b.w / 2, Math.PI, 0);
+  ctx.lineTo(b.x + b.w, b.y + b.h);
+  ctx.lineTo(b.x, b.y + b.h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Corona spezzata
+  ctx.fillStyle = '#c99a45';
+  ctx.beginPath();
+  ctx.moveTo(b.x + 18, b.y + 8);
+  ctx.lineTo(b.x + 30, b.y - 14);
+  ctx.lineTo(b.x + b.w / 2, b.y + 4);
+  ctx.lineTo(b.x + b.w - 30, b.y - 14);
+  ctx.lineTo(b.x + b.w - 18, b.y + 8);
+  ctx.fill();
+
+  // Occhi luminosi
+  ctx.fillStyle = '#ff3b56';
+  ctx.fillRect(b.x + 22, b.y + 36, 10, 7);
+  ctx.fillRect(b.x + b.w - 32, b.y + 36, 10, 7);
+  ctx.restore();
+}
+
+function drawPlayer() {
+  ctx.save();
+  if (player.invulnTimer > 0 && Math.floor(player.invulnTimer / 4) % 2 === 0) {
+    ctx.globalAlpha = 0.45;
+  }
+  const px = player.x;
+  const py = player.y;
+
+  // Mantello del Credincios
+  ctx.fillStyle = player.dashTimer > 0 ? '#ffdf80' : '#2d1934';
+  ctx.beginPath();
+  ctx.moveTo(px + player.w / 2, py + 16);
+  ctx.lineTo(px + player.w + 5, py + player.h);
+  ctx.lineTo(px - 5, py + player.h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Testa
+  ctx.fillStyle = '#f0e4d0';
+  ctx.beginPath();
+  ctx.arc(px + player.w / 2, py + 14, 11, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Occhio
+  ctx.fillStyle = '#120b14';
+  const eyeX = player.facing === 1 ? 4 : -4;
+  ctx.fillRect(px + player.w / 2 + eyeX - 1.5, py + 12, 3, 5);
+
+  // Toiag (Bastone da pellegrino)
+  ctx.strokeStyle = player.hasGospel ? '#ffdf80' : '#b88b4a';
+  ctx.lineWidth = 3.5;
+  const sx = player.facing === 1 ? px + player.w + 2 : px - 2;
+  ctx.beginPath();
+  ctx.moveTo(sx, py + 10);
+  ctx.lineTo(sx + player.facing * 4, py + player.h);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawAttackSlash() {
+  if (player.attackTimer <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = player.hasGospel ? '#ffdf80' : '#f5deb3';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  const cx = player.x + player.w / 2;
+  const cy = player.y + player.h / 2;
+
+  if (player.attackDir === 'down') {
+    ctx.arc(cx, cy + 16, 44, 0.2, Math.PI - 0.2);
+  } else if (player.facing === 1) {
+    ctx.arc(cx + 12, cy, 48, -0.85, 0.85);
+  } else {
+    ctx.arc(cx - 12, cy, 48, Math.PI - 0.85, Math.PI + 0.85);
+  }
+  ctx.stroke();
   ctx.restore();
 }
 
 function drawPortal(p) {
-  // Arco in pietra del monastero
   ctx.strokeStyle = '#c99a45';
   ctx.lineWidth = 5;
   ctx.strokeRect(p.x, p.y, p.w, p.h);
 
   const glow = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
-  glow.addColorStop(0, 'rgba(230, 198, 124, 0.45)');
-  glow.addColorStop(1, 'rgba(74, 21, 37, 0.2)');
+  glow.addColorStop(0, 'rgba(230, 198, 124, 0.5)');
+  glow.addColorStop(1, 'rgba(74, 21, 37, 0.25)');
   ctx.fillStyle = glow;
   ctx.fillRect(p.x, p.y, p.w, p.h);
 
-  // Croce sopra il portale
   ctx.beginPath();
-  ctx.moveTo(p.x + p.w / 2, p.y - 32);
+  ctx.moveTo(p.x + p.w / 2, p.y - 34);
   ctx.lineTo(p.x + p.w / 2, p.y - 6);
-  ctx.moveTo(p.x + p.w / 2 - 10, p.y - 22);
-  ctx.lineTo(p.x + p.w / 2 + 10, p.y - 22);
+  ctx.moveTo(p.x + p.w / 2 - 11, p.y - 22);
+  ctx.lineTo(p.x + p.w / 2 + 11, p.y - 22);
   ctx.stroke();
+}
+
+function drawLightingEffect(theme) {
+  const lx = player.x + player.w / 2 + player.facing * 10;
+  const ly = player.y + 26;
+  const radius = theme === 'cave' ? 260 : 220;
+
+  const grad = ctx.createRadialGradient(lx, ly, 12, lx, ly, radius);
+  grad.addColorStop(0, 'rgba(255, 220, 140, 0.24)');
+  grad.addColorStop(0.6, 'rgba(201, 154, 69, 0.07)');
+  grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(lx, ly, radius, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 /**
  * ============================================================================
- * 8. GAME LOOP PRINCIPALE
+ * 8. AVVIO DEL GIOCO
  * ============================================================================
  */
+loadLevel(0);
+
 function gameLoop() {
   update();
   draw();
   requestAnimationFrame(gameLoop);
 }
-
 gameLoop();
 </script>
 </body>
 </html>
-
