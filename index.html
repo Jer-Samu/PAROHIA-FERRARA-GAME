@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Pelerinul de la Tismana – Prototip Metroidvania</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    body {
+      background-color: #0b070c;
+      color: #f4e8d1;
+      font-family: 'Georgia', serif;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+    }
+    #gameContainer {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 1280px;
+      max-height: 720px;
+      background: #120b14;
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    /* HUD Superiore */
+    #hud {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud-left {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hearts {
+      display: flex;
+      gap: 8px;
+      font-size: 22px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+    }
+    .heart {
+      color: #c99a45;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+    .heart.lost {
+      color: #3a2a35;
+      opacity: 0.45;
+      transform: scale(0.85);
+    }
+    .relic-badge {
+      font-size: 13px;
+      color: #e6c67c;
+      background: rgba(34, 15, 28, 0.8);
+      border: 1px solid #8c6d3f;
+      padding: 4px 10px;
+      border-radius: 12px;
+      display: none;
+    }
+    .hud-right {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .btn-ui {
+      background: rgba(42, 16, 32, 0.85);
+      color: #f4e8d1;
+      border: 1px solid #8c6d3f;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-ui:active {
+      background: #6b2442;
+    }
+    /* Box Dialoghi */
+    #dialogueBox {
+      position: absolute;
+      bottom: 24%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 82%;
+      max-width: 680px;
+      background: rgba(20, 10, 22, 0.94);
+      border: 2px solid #c99a45;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+      display: none;
+      z-index: 20;
+    }
+    #dialogueSpeaker {
+      color: #e6c67c;
+      font-weight: bold;
+      font-size: 15px;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    #dialogueText {
+      font-size: 15px;
+      line-height: 1.45;
+      color: #f7efe0;
+    }
+    #dialogueHint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #b59d7e;
+      text-align: right;
+    }
+    /* Controlli Touch Mobile */
+    #touchControls {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+      z-index: 15;
+    }
+    .touch-group {
+      display: flex;
+      gap: 12px;
+      pointer-events: auto;
+    }
+    .touch-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(74, 21, 37, 0.42);
+      border: 2px solid rgba(201, 154, 69, 0.55);
+      color: #f4e8d1;
+      font-size: 20px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(2px);
+    }
+    .touch-btn.pressed {
+      background: rgba(201, 154, 69, 0.45);
+      transform: scale(0.94);
+    }
+    #btnDash {
+      display: none; /* Appare dopo aver ricevuto il Mătănii */
+      border-color: #6ee7b7;
+    }
+    /* Banner Vittoria / Fine Livello 1 */
+    #levelComplete {
+      position: absolute;
+      inset: 0;
+      background: rgba(12, 6, 14, 0.9);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 24px;
+      z-index: 30;
+    }
+    #levelComplete h2 {
+      color: #e6c67c;
+      font-size: 28px;
+      margin-bottom: 12px;
+    }
+    #levelComplete p {
+      max-width: 520px;
+      line-height: 1.5;
+      margin-bottom: 20px;
+      color: #e2d4be;
+    }
+  </style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-left">
+      <div class="hearts" id="heartsDisplay">
+        <span class="heart">✦</span>
+        <span class="heart">✦</span>
+        <span class="heart">✦</span>
+        <span class="heart">✦</span>
+        <span class="heart">✦</span>
+      </div>
+      <div class="relic-badge" id="relicBadge">📿 Mătănii (Dash)</div>
+    </div>
+    <div class="hud-right">
+      <button class="btn-ui" id="langToggle">Limba: RO / IT</button>
+    </div>
+  </div>
+
+  <!-- Dialogo NPC / Interazione -->
+  <div id="dialogueBox">
+    <div id="dialogueSpeaker">Părintele Duhovnic</div>
+    <div id="dialogueText">...</div>
+    <div id="dialogueHint">[E / ✦]</div>
+  </div>
+
+  <!-- Controlli Touch (per telefono/tablet) -->
+  <div id="touchControls">
+    <div class="touch-group">
+      <div class="touch-btn" id="btnLeft">◀</div>
+      <div class="touch-btn" id="btnRight">▶</div>
+    </div>
+    <div class="touch-group">
+      <div class="touch-btn" id="btnInteract">✦</div>
+      <div class="touch-btn" id="btnDash">⚡</div>
+      <div class="touch-btn" id="btnAttack">⚔</div>
+      <div class="touch-btn" id="btnJump">▲</div>
+    </div>
+  </div>
+
+  <!-- Schermata Fine Livello 1 -->
+  <div id="levelComplete">
+    <h2 id="endTitle">Ai ajuns la Porțile Mănăstirii Tismana!</h2>
+    <p id="endDesc">Ai învins trândăvia și ai primit darul rugăciunii neîncetate. Urmează Nivelul 2: Interiorul Mănăstirii Sfântul Nicodim.</p>
+    <button class="btn-ui" onclick="location.reload()" style="font-size:16px; padding:10px 20px;">Joacă din nou / Rigioca</button>
+  </div>
+</div>
+
+<script>
+/**
+ * ============================================================================
+ * 1. CONFIGURAZIONE FACILE (Modifica qui i numeri e i testi senza rischi!)
+ * ============================================================================
+ */
+const CONFIG = {
+  lang: 'ro', // 'ro' oppure 'it'
+  physics: {
+    gravity: 0.62,
+    moveSpeed: 5.2,
+    jumpForce: -13.5,
+    dashSpeed: 15.5,
+    dashDuration: 12, // frame
+    dashCooldown: 38  // frame
+  },
+  player: {
+    maxHp: 5,
+    attackDuration: 12,
+    attackCooldown: 20,
+    lightRadius: 230
+  },
+  texts: {
+    ro: {
+      levelName: "Nivelul 1: Valea și Zidurile Tismanei",
+      monkName: "Părintele Duhovnic",
+      monkBefore: "Pace ție, pelerinule! Prăpastia din față este prea largă pentru puterile tale omenești. Primește aceste Mătănii: cu rugăciune și avânt (Tasta K / Shift / ⚡) vei trece dincolo spre Mănăstirea Sfântului Nicodim.",
+      monkAfter: "Folosește avântul rugăciunii (K / Shift / ⚡) în aer pentru a traversa prăpastia!",
+      candleSaved: "Sfeșnic aprins: Credința și puterile ți-au fost reînnoite.",
+      relicLabel: "📿 Mătănii: Avântul Rugăciunii (K / ⚡)",
+      controlsHint: "PC: A/D Mișcare | Spațiu Salt | J Atac | K Dash | E Vorbește",
+      endTitle: "Ai ajuns la Porțile Mănăstirii Tismana!",
+      endDesc: "Ai biruit umbrele lenei și ai trecut prăpastia cu ajutorul rugăciunii. Pregătește-te pentru Nivelul 2: Biserica și Chiliile Mănăstirii!"
+    },
+    it: {
+      levelName: "Livello 1: La Valle e le Mura di Tismana",
+      monkName: "Părintele Duhovnic (Padre Spirituale)",
+      monkBefore: "Pace a te, pellegrino! Il burrone davanti a te è troppo ampio per le sole forze umane. Ricevi questo Mătănii: con la preghiera e lo slancio (Tasto K / Shift / ⚡) raggiungerai il Monastero di San Nicodemo.",
+      monkAfter: "Usa lo Slancio della Preghiera (K / Shift / ⚡) in salto per superare il burrone!",
+      candleSaved: "Candela accesa: Fede e salute ripristinate.",
+      relicLabel: "📿 Mătănii: Slancio della Preghiera (K / ⚡)",
+      controlsHint: "PC: A/D Muovi | Spazio Salto | J Attacco | K Dash | E Interagisci",
+      endTitle: "Hai raggiunto le Porte del Monastero di Tismana!",
+      endDesc: "Hai vinto l'accidia e superato il baratro con la forza della preghiera. Preparati per il Livello 2: L'Interno del Monastero!"
+    }
+  }
+};
+
+/**
+ * ============================================================================
+ * 2. INIZIALIZZAZIONE MOTORE E INPUT
+ * ============================================================================
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const keys = {};
+let dialogueOpen = false;
+let notificationText = "";
+let notificationTimer = 0;
+
+window.addEventListener('keydown', (e) => {
+  keys[e.code] = true;
+  if (e.code === 'KeyE') handleInteract();
+});
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+});
+
+// Cambio lingua RO / IT
+document.getElementById('langToggle').addEventListener('click', () => {
+  CONFIG.lang = CONFIG.lang === 'ro' ? 'it' : 'ro';
+  updateUI();
+});
+
+function t(key) {
+  return CONFIG.texts[CONFIG.lang][key];
+}
+
+// Collegamento tasti Touch Mobile
+function bindTouch(id, code, isAction = false) {
+  const el = document.getElementById(id);
+  el.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    el.classList.add('pressed');
+    keys[code] = true;
+    if (isAction && code === 'KeyE') handleInteract();
+  });
+  el.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    el.classList.remove('pressed');
+    keys[code] = false;
+  });
+}
+bindTouch('btnLeft', 'ArrowLeft');
+bindTouch('btnRight', 'ArrowRight');
+bindTouch('btnJump', 'Space');
+bindTouch('btnAttack', 'KeyJ');
+bindTouch('btnDash', 'KeyK');
+bindTouch('btnInteract', 'KeyE', true);
+
+/**
+ * ============================================================================
+ * 3. DATI DEL LIVELLO 1 (Piattaforme, Candele, Monaco, Nemici)
+ * ============================================================================
+ */
+const level = {
+  width: 3400,
+  height: 720,
+  platforms: [
+    // Terreno iniziale (Valle)
+    { x: 0, y: 580, w: 950, h: 140 },
+    // Piattaforme rialzate bosco
+    { x: 320, y: 460, w: 180, h: 24 },
+    { x: 580, y: 390, w: 200, h: 24 },
+    // Secondo tratto prima del grande burrone
+    { x: 1030, y: 580, w: 820, h: 140 },
+    { x: 1250, y: 470, w: 170, h: 24 },
+    // --- GRANDE BURRONE (x: 1850 -> 2230): richiede il Dash (Mătănii) ---
+    // Altopiano del Monastero dopo il burrone
+    { x: 2230, y: 580, w: 1170, h: 140 },
+    { x: 2480, y: 460, w: 190, h: 24 },
+    { x: 2760, y: 370, w: 210, h: 24 }
+  ],
+  candles: [
+    { x: 150, y: 580, lit: true },
+    { x: 1420, y: 580, lit: false }
+  ],
+  monk: {
+    x: 1740,
+    y: 580,
+    w: 44,
+    h: 78,
+    gaveRelic: false
+  },
+  portal: {
+    x: 3180,
+    y: 430,
+    w: 90,
+    h: 150
+  }
+};
+
+let enemies = [];
+function spawnEnemies() {
+  enemies = [
+    // Lenea (Accidia) - ombre lente che pattugliano
+    { x: 640, y: 530, w: 42, h: 50, vx: 1.3, minX: 520, maxX: 880, hp: 2, maxHp: 2, hurtTimer: 0, name: 'Lenea' },
+    { x: 1200, y: 530, w: 42, h: 50, vx: 1.5, minX: 1060, maxX: 1360, hp: 2, maxHp: 2, hurtTimer: 0, name: 'Lenea' },
+    { x: 2600, y: 530, w: 46, h: 54, vx: 1.8, minX: 2350, maxX: 2950, hp: 3, maxHp: 3, hurtTimer: 0, name: 'Îndoiala' }
+  ];
+}
+
+/**
+ * ============================================================================
+ * 4. STATO DEL GIOCATORE (CREDINCIOȘ)
+ * ============================================================================
+ */
+const player = {
+  x: 120,
+  y: 480,
+  w: 36,
+  h: 64,
+  vx: 0,
+  vy: 0,
+  facing: 1, // 1 destra, -1 sinistra
+  onGround: false,
+  hp: CONFIG.player.maxHp,
+  invulnTimer: 0,
+  // Attacco Toiag
+  attackTimer: 0,
+  attackCooldown: 0,
+  // Abilità Metroidvania: Dash (Mătănii)
+  hasDash: false,
+  canAirDash: true,
+  dashTimer: 0,
+  dashCooldown: 0,
+  // Checkpoint
+  spawnX: 150,
+  spawnY: 500
+};
+
+spawnEnemies();
+updateUI();
+
+/**
+ * ============================================================================
+ * 5. INTERAZIONI (MONACO, CANDELE, DIALOGHI)
+ * ============================================================================
+ */
+function handleInteract() {
+  if (dialogueOpen) {
+    dialogueOpen = false;
+    document.getElementById('dialogueBox').style.display = 'none';
+    return;
+  }
+
+  // Controllo vicinanza Monaco (Părintele Duhovnic)
+  const distMonk = Math.hypot((player.x + player.w/2) - (level.monk.x + level.monk.w/2), (player.y + player.h/2) - (level.monk.y - 35));
+  if (distMonk < 95) {
+    dialogueOpen = true;
+    const box = document.getElementById('dialogueBox');
+    document.getElementById('dialogueSpeaker').innerText = t('monkName');
+    if (!level.monk.gaveRelic) {
+      level.monk.gaveRelic = true;
+      player.hasDash = true;
+      document.getElementById('dialogueText').innerText = t('monkBefore');
+      document.getElementById('relicBadge').style.display = 'inline-block';
+      document.getElementById('btnDash').style.display = 'flex';
+      updateUI();
+    } else {
+      document.getElementById('dialogueText').innerText = t('monkAfter');
+    }
+    box.style.display = 'block';
+    return;
+  }
+
+  // Controllo vicinanza Candele Checkpoint (Sfeșnic)
+  for (let c of level.candles) {
+    const distC = Math.hypot((player.x + player.w/2) - c.x, (player.y + player.h) - c.y);
+    if (distC < 85) {
+      c.lit = true;
+      player.spawnX = c.x - player.w / 2;
+      player.spawnY = c.y - player.h - 4;
+      player.hp = CONFIG.player.maxHp;
+      spawnEnemies(); // Resetta i nemici come nei Soulslike/Hollow Knight
+      updateUI();
+      showNotification(t('candleSaved'));
+      return;
+    }
+  }
+}
+
+function showNotification(msg) {
+  notificationText = msg;
+  notificationTimer = 160;
+}
+
+function updateUI() {
+  const hearts = document.querySelectorAll('#heartsDisplay .heart');
+  hearts.forEach((h, idx) => {
+    if (idx < player.hp) h.classList.remove('lost');
+    else h.classList.add('lost');
+  });
+  document.getElementById('relicBadge').innerText = t('relicLabel');
+  document.getElementById('endTitle').innerText = t('endTitle');
+  document.getElementById('endDesc').innerText = t('endDesc');
+}
+
+/**
+ * ============================================================================
+ * 6. LOGICA DI AGGIORNAMENTO (FISICA, COMBATTIMENTO, NEMICI)
+ * ============================================================================
+ */
+let cameraX = 0;
+let levelFinished = false;
+
+function update() {
+  if (levelFinished) return;
+
+  if (notificationTimer > 0) notificationTimer--;
+
+  // Se il dialogo è aperto, ferma il movimento
+  if (dialogueOpen) return;
+
+  // Cooldown timer
+  if (player.invulnTimer > 0) player.invulnTimer--;
+  if (player.attackTimer > 0) player.attackTimer--;
+  if (player.attackCooldown > 0) player.attackCooldown--;
+  if (player.dashCooldown > 0) player.dashCooldown--;
+
+  // Attivazione Dash (Slancio della Preghiera)
+  if (player.hasDash && (keys['KeyK'] || keys['KeyX'] || keys['ShiftLeft']) && player.dashCooldown <= 0 && player.canAirDash && player.dashTimer <= 0) {
+    player.dashTimer = CONFIG.physics.dashDuration;
+    player.dashCooldown = CONFIG.physics.dashCooldown;
+    if (!player.onGround) player.canAirDash = false;
+  }
+
+  // Movimento Orizzontale / Dash
+  if (player.dashTimer > 0) {
+    player.dashTimer--;
+    player.vx = player.facing * CONFIG.physics.dashSpeed;
+    player.vy = 0;
+  } else {
+    let moveDir = 0;
+    if (keys['ArrowLeft'] || keys['KeyA']) moveDir -= 1;
+    if (keys['ArrowRight'] || keys['KeyD']) moveDir += 1;
+
+    if (moveDir !== 0) {
+      player.facing = moveDir;
+      player.vx = moveDir * CONFIG.physics.moveSpeed;
+    } else {
+      player.vx *= 0.78;
+      if (Math.abs(player.vx) < 0.2) player.vx = 0;
+    }
+
+    // Salto
+    if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.onGround) {
+      player.vy = CONFIG.physics.jumpForce;
+      player.onGround = false;
+    }
+
+    // Gravità
+    player.vy += CONFIG.physics.gravity;
+    if (player.vy > 15) player.vy = 15;
+  }
+
+  // Attacco con Bastone (Toiag)
+  if ((keys['KeyJ'] || keys['KeyZ']) && player.attackCooldown <= 0) {
+    player.attackTimer = CONFIG.player.attackDuration;
+    player.attackCooldown = CONFIG.player.attackCooldown;
+  }
+
+  // Applicazione movimento e collisioni piattaforme
+  player.x += player.vx;
+  if (player.x < 0) player.x = 0;
+  if (player.x + player.w > level.width) player.x = level.width - player.w;
+
+  for (let p of level.platforms) {
+    if (rectIntersect(player, p)) {
+      if (player.vx > 0) player.x = p.x - player.w;
+      else if (player.vx < 0) player.x = p.x + p.w;
+    }
+  }
+
+  player.y += player.vy;
+  player.onGround = false;
+
+  for (let p of level.platforms) {
+    if (rectIntersect(player, p)) {
+      if (player.vy > 0) {
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+        player.canAirDash = true;
+      } else if (player.vy < 0) {
+        player.y = p.y + p.h;
+        player.vy = 0;
+      }
+    }
+  }
+
+  // Caduta nel burrone -> ritorna all'ultima candela accesa
+  if (player.y > level.height + 60) {
+    takeDamage(1, true);
+  }
+
+  // Hitbox Attacco Bastone
+  const attackBox = getAttackHitbox();
+
+  // Aggiornamento Nemici
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let e = enemies[i];
+    if (e.hurtTimer > 0) e.hurtTimer--;
+
+    e.x += e.vx;
+    if (e.x <= e.minX || e.x + e.w >= e.maxX) {
+      e.vx *= -1;
+    }
+
+    // Danno inflitto al nemico
+    if (attackBox && e.hurtTimer <= 0 && rectIntersect(attackBox, e)) {
+      e.hp -= 1;
+      e.hurtTimer = 14;
+      e.x += player.facing * 18; // knockback
+      if (e.hp <= 0) {
+        enemies.splice(i, 1);
+        continue;
+      }
+    }
+
+    // Danno subito dal giocatore
+    if (player.invulnTimer <= 0 && player.dashTimer <= 0 && rectIntersect(player, e)) {
+      takeDamage(1, false);
+    }
+  }
+
+  // Controllo raggiungimento Portale del Monastero (Fine Livello 1)
+  if (rectIntersect(player, level.portal)) {
+    levelFinished = true;
+    document.getElementById('levelComplete').style.display = 'flex';
+  }
+
+  // Telecamera fluida
+  const targetCamX = player.x - canvas.width * 0.38;
+  cameraX += (targetCamX - cameraX) * 0.1;
+  cameraX = Math.max(0, Math.min(level.width - canvas.width, cameraX));
+}
+
+function takeDamage(amount, fellInPit) {
+  player.hp = Math.max(0, player.hp - amount);
+  player.invulnTimer = 55;
+  updateUI();
+
+  if (player.hp <= 0 || fellInPit) {
+    if (player.hp <= 0) {
+      player.hp = CONFIG.player.maxHp;
+      spawnEnemies();
+      updateUI();
+    }
+    player.x = player.spawnX;
+    player.y = player.spawnY;
+    player.vx = 0;
+    player.vy = 0;
+  } else {
+    player.vy = -7;
+    player.vx = -player.facing * 6;
+  }
+}
+
+function getAttackHitbox() {
+  if (player.attackTimer <= 0) return null;
+  const reach = 58;
+  return {
+    x: player.facing === 1 ? player.x + player.w : player.x - reach,
+    y: player.y + 8,
+    w: reach,
+    h: player.h - 16
+  };
+}
+
+function rectIntersect(a, b) {
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
+}
+
+/**
+ * ============================================================================
+ * 7. RENDERING GRAFICO (STILE HOLLOW KNIGHT + ICONOGRAFIA ORTODOSSA)
+ * ============================================================================
+ */
+function draw() {
+  // Sfondo crepuscolare (gradiente porpora scuro / notte dell'Oltenia)
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  bgGrad.addColorStop(0, '#130918');
+  bgGrad.addColorStop(0.6, '#261124');
+  bgGrad.addColorStop(1, '#120a10');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, canvas.wid
