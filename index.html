@@ -688,4 +688,278 @@ function draw() {
   bgGrad.addColorStop(0.6, '#261124');
   bgGrad.addColorStop(1, '#120a10');
   ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, canvas.wid
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Luna / Aureola dorata sullo sfondo
+  ctx.save();
+  ctx.fillStyle = 'rgba(230, 198, 124, 0.12)';
+  ctx.beginPath();
+  ctx.arc(980 - cameraX * 0.08, 150, 95, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(201, 154, 69, 0.25)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // Silhouette delle Montagne e della Mănăstirea Tismana in lontananza (Parallasse)
+  drawMonasteryBackground();
+
+  ctx.save();
+  ctx.translate(-cameraX, 0);
+
+  // Piattaforme (roccia e muschio scuro)
+  for (let p of level.platforms) {
+    ctx.fillStyle = '#1b131d';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    // Bordo superiore dorato/ocra stile incisione
+    ctx.fillStyle = '#5c4632';
+    ctx.fillRect(p.x, p.y, p.w, 6);
+    ctx.strokeStyle = '#0c070d';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x, p.y, p.w, p.h);
+  }
+
+  // Portale del Monastero (Obiettivo Livello 1)
+  drawPortal(level.portal);
+
+  // Candele Votive (Sfeșnic - Checkpoint)
+  for (let c of level.candles) {
+    drawCandle(c);
+  }
+
+  // Monaco (Părintele Duhovnic)
+  drawMonk(level.monk);
+
+  // Nemici (Tentazioni: Lenea / Îndoiala)
+  for (let e of enemies) {
+    drawEnemy(e);
+  }
+
+  // Giocatore (Credincios)
+  drawPlayer();
+
+  // Effetto Fendente Bastone (Toiag)
+  const atk = getAttackHitbox();
+  if (atk) {
+    ctx.save();
+    ctx.strokeStyle = '#f5deb3';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    const cx = player.x + player.w / 2;
+    const cy = player.y + player.h / 2;
+    if (player.facing === 1) {
+      ctx.arc(cx + 10, cy, 48, -0.8, 0.8);
+    } else {
+      ctx.arc(cx - 10, cy, 48, Math.PI - 0.8, Math.PI + 0.8);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Luce dinamica della Lanterna attorno al Pellegrino
+  const lightX = player.x + player.w / 2 + player.facing * 12;
+  const lightY = player.y + 28;
+  const radGrad = ctx.createRadialGradient(lightX, lightY, 10, lightX, lightY, CONFIG.player.lightRadius);
+  radGrad.addColorStop(0, 'rgba(255, 215, 130, 0.22)');
+  radGrad.addColorStop(0.6, 'rgba(201, 154, 69, 0.06)');
+  radGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = radGrad;
+  ctx.beginPath();
+  ctx.arc(lightX, lightY, CONFIG.player.lightRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Titolo Livello e Comandi in basso
+  ctx.fillStyle = 'rgba(230, 198, 124, 0.75)';
+  ctx.font = '14px Georgia';
+  ctx.fillText(t('levelName'), 18, 68);
+
+  ctx.fillStyle = 'rgba(244, 232, 209, 0.45)';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(t('controlsHint'), 18, canvas.height - 12);
+
+  // Notifica temporanea (es. Candela accesa)
+  if (notificationTimer > 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(20, 10, 22, 0.85)';
+    ctx.strokeStyle = '#c99a45';
+    ctx.fillRect(canvas.width / 2 - 240, 60, 480, 38);
+    ctx.strokeRect(canvas.width / 2 - 240, 60, 480, 38);
+    ctx.fillStyle = '#f4e8d1';
+    ctx.font = '14px Georgia';
+    ctx.textAlign = 'center';
+    ctx.fillText(notificationText, canvas.width / 2, 84);
+    ctx.restore();
+  }
+}
+
+function drawMonasteryBackground() {
+  const parallax = cameraX * 0.25;
+  ctx.fillStyle = '#180d1c';
+  // Profilo montagne
+  ctx.beginPath();
+  ctx.moveTo(0, 580);
+  ctx.lineTo(250 - parallax * 0.3, 310);
+  ctx.lineTo(650 - parallax * 0.3, 420);
+  ctx.lineTo(1100 - parallax * 0.3, 240);
+  ctx.lineTo(1600 - parallax * 0.3, 580);
+  ctx.fill();
+
+  // Silhouette torri di Mănăstirea Tismana in lontananza
+  const mx = 1020 - parallax;
+  ctx.fillStyle = '#1f1024';
+  ctx.fillRect(mx, 250, 160, 180);
+  // Cupola bizantina
+  ctx.beginPath();
+  ctx.arc(mx + 80, 250, 42, Math.PI, 0);
+  ctx.fill();
+  // Croce ortodossa sulla cupola
+  ctx.strokeStyle = '#8c6d3f';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(mx + 80, 185);
+  ctx.lineTo(mx + 80, 212);
+  ctx.moveTo(mx + 72, 194);
+  ctx.lineTo(mx + 88, 194);
+  ctx.stroke();
+}
+
+function drawPlayer() {
+  ctx.save();
+  if (player.invulnTimer > 0 && Math.floor(player.invulnTimer / 4) % 2 === 0) {
+    ctx.globalAlpha = 0.45;
+  }
+
+  const px = player.x;
+  const py = player.y;
+
+  // Mantello scuro del Credincios (stile Hollow Knight)
+  ctx.fillStyle = player.dashTimer > 0 ? '#e6c67c' : '#2a1a2e';
+  ctx.beginPath();
+  ctx.moveTo(px + player.w / 2, py + 18);
+  ctx.lineTo(px + player.w + 4, py + player.h);
+  ctx.lineTo(px - 4, py + player.h);
+  ctx.closePath();
+  ctx.fill();
+
+  // Cappuccio / Testa
+  ctx.fillStyle = '#e8dcc8';
+  ctx.beginPath();
+  ctx.arc(px + player.w / 2, py + 15, 12, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Occhi espressivi
+  ctx.fillStyle = '#120b14';
+  const eyeOffset = player.facing === 1 ? 4 : -4;
+  ctx.fillRect(px + player.w / 2 + eyeOffset - 2, py + 13, 3, 5);
+
+  // Bastone da pellegrino (Toiag)
+  ctx.strokeStyle = '#b88b4a';
+  ctx.lineWidth = 3;
+  const staffX = player.facing === 1 ? px + player.w + 2 : px - 2;
+  ctx.beginPath();
+  ctx.moveTo(staffX, py + 12);
+  ctx.lineTo(staffX + player.facing * 4, py + player.h);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawMonk(m) {
+  // Veste monastica (Rasa)
+  ctx.fillStyle = '#140e17';
+  ctx.fillRect(m.x, m.y - m.h, m.w, m.h);
+  // Barba bianca e volto
+  ctx.fillStyle = '#d9cbb8';
+  ctx.beginPath();
+  ctx.arc(m.x + m.w / 2, m.y - m.h + 14, 11, 0, Math.PI * 2);
+  ctx.fill();
+  // Klobuk / Copricapo monastico
+  ctx.fillStyle = '#0d090f';
+  ctx.fillRect(m.x + 9, m.y - m.h - 4, 26, 12);
+
+  // Simbolo interazione sopra il monaco
+  ctx.fillStyle = '#e6c67c';
+  ctx.font = '14px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText('✦ [E]', m.x + m.w / 2, m.y - m.h - 14);
+}
+
+function drawCandle(c) {
+  // Sfeșnic (Portacandela)
+  ctx.fillStyle = '#8c6d3f';
+  ctx.fillRect(c.x - 4, c.y - 34, 8, 34);
+  ctx.fillRect(c.x - 12, c.y - 4, 24, 4);
+  // Candela
+  ctx.fillStyle = '#f4e8d1';
+  ctx.fillRect(c.x - 3, c.y - 48, 6, 14);
+
+  if (c.lit) {
+    // Fiamma dorata
+    ctx.fillStyle = '#ffcf56';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y - 54, 6 + Math.sin(Date.now() * 0.015) * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawEnemy(e) {
+  ctx.save();
+  ctx.fillStyle = e.hurtTimer > 0 ? '#ffffff' : '#09050a';
+  ctx.strokeStyle = '#6b2442';
+  ctx.lineWidth = 2;
+
+  // Corpo ombra tentazione
+  ctx.beginPath();
+  ctx.arc(e.x + e.w / 2, e.y + e.h / 2, e.w / 2, Math.PI, 0);
+  ctx.lineTo(e.x + e.w, e.y + e.h);
+  ctx.lineTo(e.x, e.y + e.h);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Occhi cremisi
+  ctx.fillStyle = '#e04f5f';
+  ctx.fillRect(e.x + 11, e.y + 18, 5, 4);
+  ctx.fillRect(e.x + e.w - 16, e.y + 18, 5, 4);
+  ctx.restore();
+}
+
+function drawPortal(p) {
+  // Arco in pietra del monastero
+  ctx.strokeStyle = '#c99a45';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(p.x, p.y, p.w, p.h);
+
+  const glow = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+  glow.addColorStop(0, 'rgba(230, 198, 124, 0.45)');
+  glow.addColorStop(1, 'rgba(74, 21, 37, 0.2)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+
+  // Croce sopra il portale
+  ctx.beginPath();
+  ctx.moveTo(p.x + p.w / 2, p.y - 32);
+  ctx.lineTo(p.x + p.w / 2, p.y - 6);
+  ctx.moveTo(p.x + p.w / 2 - 10, p.y - 22);
+  ctx.lineTo(p.x + p.w / 2 + 10, p.y - 22);
+  ctx.stroke();
+}
+
+/**
+ * ============================================================================
+ * 8. GAME LOOP PRINCIPALE
+ * ============================================================================
+ */
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>
+
