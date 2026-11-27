@@ -54,6 +54,18 @@
       cursor: crosshair;
     }
 
+    /* PLAYER YOUTUBE NASCOSTO PER MUSICA DI SOTTOFONDO */
+    #ytBgWrap {
+      position: fixed;
+      top: -200px;
+      left: -200px;
+      width: 1px;
+      height: 1px;
+      opacity: 0.001;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
     /* AVVISO ROTAZIONE SU TELEFONO IN VERTICALE */
     #rotateNotice {
       display: none;
@@ -215,7 +227,7 @@
       padding: 5px 10px;
       border-radius: 10px;
       border: 1px solid rgba(201, 154, 69, 0.55);
-      max-width: 58%;
+      max-width: 56%;
     }
     .hearts-row {
       display: flex;
@@ -271,7 +283,7 @@
     }
     .hud-right {
       display: flex;
-      gap: 5px;
+      gap: 4px;
       pointer-events: auto;
       flex-wrap: wrap;
       justify-content: flex-end;
@@ -289,6 +301,10 @@
     .btn-ui:hover, .btn-ui:active {
       background: #6b2442;
     }
+    .btn-ui.muted {
+      opacity: 0.55;
+      border-color: #6e4e20;
+    }
 
     /* BOSS HUD */
     #bossHud {
@@ -297,7 +313,7 @@
       left: 50%;
       transform: translateX(-50%);
       width: 440px;
-      max-width: 48vw;
+      max-width: 46vw;
       background: rgba(16, 6, 18, 0.92);
       border: 1.5px solid #c99a45;
       border-radius: 8px;
@@ -493,6 +509,9 @@
   <button id="closeRotateNotice" aria-label="Chiudi">✕</button>
 </div>
 
+<!-- PLAYER AUDIO YOUTUBE IN SOTTOFONDO -->
+<div id="ytBgWrap"><div id="ytPlayer"></div></div>
+
 <div id="gameContainer">
   <canvas id="gameCanvas" width="1280" height="720"></canvas>
 
@@ -570,6 +589,8 @@
       </div>
     </div>
     <div class="hud-right">
+      <button class="btn-ui" id="btnToggleMusic" title="Muzică / Musica">🎵</button>
+      <button class="btn-ui" id="btnToggleSfx" title="Sunete / Effetti">🔊</button>
       <button class="btn-ui" id="btnHudFullscreen" title="Schermo Intero">⛶</button>
       <button class="btn-ui" id="btnToggleTouch" title="Comandi Touch">🎮</button>
       <button class="btn-ui" id="btnOpenMap">🗺️ Harta (M)</button>
@@ -614,6 +635,276 @@
 </div>
 
 <script>
+/**
+ * ============================================================================
+ * 0. MOTORE AUDIO (MUSICA YOUTUBE DI SOTTOFONDO + EFFETTI SONORI WEB AUDIO)
+ * ============================================================================
+ */
+const AUDIO = {
+  ytVideoId: 'tkI_5UVXq_k',
+  ytPlayer: null,
+  ytReady: false,
+  localAudio: null,
+  useLocalMp3: false,
+  musicEnabled: true,
+  sfxEnabled: true,
+  musicStarted: false,
+  ctx: null,
+
+  initContext() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+  },
+
+  startMusic() {
+    this.initContext();
+    this.musicStarted = true;
+    if (!this.musicEnabled) return;
+
+    if (this.useLocalMp3 && this.localAudio) {
+      this.localAudio.play().catch(() => {});
+      return;
+    }
+    if (this.ytReady && this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+      try {
+        this.ytPlayer.unMute();
+        this.ytPlayer.setVolume(42);
+        this.ytPlayer.playVideo();
+      } catch (e) {}
+    }
+  },
+
+  pauseMusic() {
+    if (this.localAudio) this.localAudio.pause();
+    if (this.ytReady && this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
+      try { this.ytPlayer.pauseVideo(); } catch (e) {}
+    }
+  },
+
+  toggleMusic() {
+    this.musicEnabled = !this.musicEnabled;
+    const btn = document.getElementById('btnToggleMusic');
+    if (this.musicEnabled) {
+      btn.innerText = '🎵';
+      btn.classList.remove('muted');
+      this.startMusic();
+    } else {
+      btn.innerText = '🔇';
+      btn.classList.add('muted');
+      this.pauseMusic();
+    }
+  },
+
+  toggleSfx() {
+    this.sfxEnabled = !this.sfxEnabled;
+    const btn = document.getElementById('btnToggleSfx');
+    if (this.sfxEnabled) {
+      btn.innerText = '🔊';
+      btn.classList.remove('muted');
+      this.playSfx('ui');
+    } else {
+      btn.innerText = '🔈';
+      btn.classList.add('muted');
+    }
+  },
+
+  playTone(freq, endFreq, duration, type = 'sine', vol = 0.14, delay = 0) {
+    if (!this.sfxEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    if (endFreq && endFreq !== freq) {
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + duration);
+    }
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(vol, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  },
+
+  playNoise(duration, vol = 0.12, filterFreq = 900) {
+    if (!this.sfxEnabled) return;
+    this.initContext();
+    if (!this.ctx) return;
+
+    const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = filterFreq;
+
+    const gain = this.ctx.createGain();
+    const now = this.ctx.currentTime;
+    gain.gain.setValueAtTime(vol, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    noise.start(now);
+  },
+
+  playSfx(kind) {
+    if (!this.sfxEnabled) return;
+    switch (kind) {
+      case 'jump':
+        this.playTone(230, 460, 0.14, 'triangle', 0.13);
+        break;
+      case 'doubleJump':
+        this.playTone(340, 680, 0.16, 'sine', 0.15);
+        this.playTone(510, 760, 0.14, 'triangle', 0.09, 0.04);
+        break;
+      case 'wallJump':
+        this.playTone(280, 560, 0.13, 'square', 0.08);
+        break;
+      case 'attack':
+        this.playNoise(0.11, 0.16, 1150);
+        this.playTone(320, 110, 0.10, 'triangle', 0.11);
+        break;
+      case 'attackStrong':
+        this.playNoise(0.14, 0.20, 900);
+        this.playTone(440, 130, 0.14, 'sawtooth', 0.11);
+        break;
+      case 'pogo':
+        this.playTone(360, 620, 0.12, 'triangle', 0.14);
+        break;
+      case 'dash':
+        this.playNoise(0.16, 0.18, 1600);
+        this.playTone(520, 220, 0.15, 'sine', 0.10);
+        break;
+      case 'beam':
+        this.playTone(520, 1040, 0.24, 'sine', 0.15);
+        this.playTone(780, 1320, 0.22, 'triangle', 0.09, 0.03);
+        break;
+      case 'heal':
+        this.playTone(392, 392, 0.30, 'sine', 0.13, 0);
+        this.playTone(493.88, 493.88, 0.32, 'sine', 0.13, 0.08);
+        this.playTone(587.33, 587.33, 0.40, 'sine', 0.14, 0.16);
+        break;
+      case 'candle':
+        // Rintocco caldo tipo campana bizantina
+        this.playTone(587.33, 584, 0.65, 'sine', 0.16, 0);
+        this.playTone(880, 876, 0.55, 'sine', 0.10, 0.02);
+        this.playTone(1174.66, 1170, 0.45, 'triangle', 0.07, 0.04);
+        break;
+      case 'relic':
+        this.playTone(440, 440, 0.22, 'triangle', 0.14, 0);
+        this.playTone(554.37, 554.37, 0.24, 'triangle', 0.14, 0.09);
+        this.playTone(659.25, 659.25, 0.28, 'triangle', 0.15, 0.18);
+        this.playTone(880, 880, 0.50, 'sine', 0.16, 0.27);
+        break;
+      case 'hitEnemy':
+        this.playTone(190, 85, 0.11, 'sawtooth', 0.14);
+        break;
+      case 'enemyDie':
+        this.playTone(240, 65, 0.24, 'sawtooth', 0.15);
+        this.playNoise(0.14, 0.12, 600);
+        break;
+      case 'hurt':
+        this.playTone(165, 72, 0.26, 'sawtooth', 0.18);
+        this.playTone(120, 58, 0.26, 'square', 0.11);
+        break;
+      case 'portal':
+        this.playTone(330, 660, 0.35, 'sine', 0.14);
+        this.playTone(495, 990, 0.35, 'sine', 0.11, 0.07);
+        break;
+      case 'bossDefeat':
+        this.playTone(220, 55, 0.85, 'sawtooth', 0.18, 0);
+        this.playTone(440, 880, 0.70, 'sine', 0.15, 0.25);
+        this.playTone(659.25, 1318.5, 0.80, 'sine', 0.14, 0.45);
+        break;
+      case 'ui':
+        this.playTone(520, 660, 0.08, 'sine', 0.10);
+        break;
+    }
+  }
+};
+
+// Controlla se esiste un file musica.mp3 locale nella repo; altrimenti usa YouTube
+(function setupMusicSource() {
+  fetch('musica.mp3', { method: 'HEAD' })
+    .then(res => {
+      if (res.ok) {
+        AUDIO.useLocalMp3 = true;
+        AUDIO.localAudio = new Audio('musica.mp3');
+        AUDIO.localAudio.loop = true;
+        AUDIO.localAudio.volume = 0.42;
+      } else {
+        loadYouTubeApi();
+      }
+    })
+    .catch(() => loadYouTubeApi());
+})();
+
+function loadYouTubeApi() {
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+}
+
+window.onYouTubeIframeAPIReady = function () {
+  AUDIO.ytPlayer = new YT.Player('ytPlayer', {
+    height: '1',
+    width: '1',
+    videoId: AUDIO.ytVideoId,
+    playerVars: {
+      autoplay: 0,
+      controls: 0,
+      disablekb: 1,
+      fs: 0,
+      loop: 1,
+      playlist: AUDIO.ytVideoId,
+      modestbranding: 1,
+      playsinline: 1,
+      rel: 0
+    },
+    events: {
+      onReady: function () {
+        AUDIO.ytReady = true;
+        if (AUDIO.musicStarted && AUDIO.musicEnabled) {
+          AUDIO.startMusic();
+        }
+      },
+      onStateChange: function (event) {
+        if (event.data === YT.PlayerState.ENDED && AUDIO.musicEnabled) {
+          AUDIO.ytPlayer.playVideo();
+        }
+      }
+    }
+  });
+};
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    AUDIO.pauseMusic();
+  } else if (AUDIO.musicStarted && AUDIO.musicEnabled) {
+    AUDIO.startMusic();
+  }
+});
+
+document.getElementById('btnToggleMusic').addEventListener('click', () => AUDIO.toggleMusic());
+document.getElementById('btnToggleSfx').addEventListener('click', () => AUDIO.toggleSfx());
+
 /**
  * ============================================================================
  * 1. CONFIGURAZIONE E TESTI BILINGUI (5 LIVELLI + INTRO + FINALE + TUTORIAL)
@@ -808,12 +1099,15 @@ function renderIntroSlide() {
 }
 
 document.getElementById('btnTitleLang').addEventListener('click', () => {
+  AUDIO.playSfx('ui');
   CONFIG.lang = CONFIG.lang === 'ro' ? 'it' : 'ro';
   refreshMenuTexts();
   updateHUD();
 });
 
 document.getElementById('btnStartIntro').addEventListener('click', () => {
+  AUDIO.startMusic();
+  AUDIO.playSfx('ui');
   document.getElementById('titleScreen').style.display = 'none';
   document.getElementById('introScreen').style.display = 'flex';
   introSlideIdx = 0;
@@ -821,6 +1115,7 @@ document.getElementById('btnStartIntro').addEventListener('click', () => {
 });
 
 document.getElementById('btnNextSlide').addEventListener('click', () => {
+  AUDIO.playSfx('ui');
   const slides = CONFIG.texts[CONFIG.lang].introSlides;
   introSlideIdx++;
   if (introSlideIdx >= slides.length) {
@@ -834,6 +1129,8 @@ document.getElementById('btnSkipIntro').addEventListener('click', startGameNow);
 document.getElementById('btnQuickStart').addEventListener('click', startGameNow);
 
 function startGameNow() {
+  AUDIO.startMusic();
+  AUDIO.playSfx('portal');
   document.getElementById('titleScreen').style.display = 'none';
   document.getElementById('introScreen').style.display = 'none';
   gameStarted = true;
@@ -995,6 +1292,7 @@ bindScreenButton('btnBeam', null, triggerHolyBeam);
 bindScreenButton('btnInteract', null, triggerInteraction);
 
 document.getElementById('btnToggleTouch').addEventListener('click', () => {
+  AUDIO.playSfx('ui');
   const tc = document.getElementById('touchControls');
   const isComputedHidden = window.getComputedStyle(tc).display === 'none';
   if (isComputedHidden) {
@@ -1011,12 +1309,14 @@ document.getElementById('closeRotateNotice').addEventListener('click', () => {
 });
 
 document.getElementById('langToggle').addEventListener('click', () => {
+  AUDIO.playSfx('ui');
   CONFIG.lang = CONFIG.lang === 'ro' ? 'it' : 'ro';
   refreshMenuTexts();
   updateHUD();
 });
 
 document.getElementById('levelSwitchBtn').addEventListener('click', () => {
+  AUDIO.playSfx('portal');
   const next = (currentLevelIndex + 1) % 5;
   if (next >= 1) player.hasDash = true;
   if (next >= 2) player.hasDoubleJump = true;
@@ -1026,6 +1326,7 @@ document.getElementById('levelSwitchBtn').addEventListener('click', () => {
 });
 
 function toggleMapModal() {
+  AUDIO.playSfx('ui');
   mapOpen = !mapOpen;
   const modal = document.getElementById('mapModal');
   if (mapOpen) {
@@ -1329,6 +1630,7 @@ function triggerAttack() {
   if (player.attackCooldown <= 0) {
     player.attackTimer = 12;
     player.attackCooldown = 16;
+    AUDIO.playSfx(player.hasGospel ? 'attackStrong' : 'attack');
     if (!player.onGround && (keys['ArrowDown'] || keys['KeyS'])) {
       player.attackDir = 'down';
     } else {
@@ -1343,6 +1645,7 @@ function triggerDash() {
     player.dashTimer = CONFIG.physics.dashDuration;
     player.dashCooldown = CONFIG.physics.dashCooldown;
     if (!player.onGround) player.canAirDash = false;
+    AUDIO.playSfx('dash');
     spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#e6c67c', 12);
   }
 }
@@ -1352,6 +1655,7 @@ function triggerHeal() {
   if (player.soul >= 35 && player.hp < player.maxHp) {
     player.soul -= 35;
     player.hp = Math.min(player.maxHp, player.hp + 1);
+    AUDIO.playSfx('heal');
     spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#6ee7b7', 22);
     updateHUD();
     showBanner(t('healMsg'));
@@ -1362,6 +1666,7 @@ function triggerHolyBeam() {
   if (dialogueOpen || mapOpen || !player.hasBeam) return;
   if (player.soul >= 25) {
     player.soul -= 25;
+    AUDIO.playSfx('beam');
     playerBeams.push({
       x: player.x + player.w / 2 + player.facing * 20,
       y: player.y + 26,
@@ -1397,6 +1702,7 @@ function triggerInteraction() {
       player.spawnY = c.y - player.h - 4;
       player.hp = player.maxHp;
       player.soul = player.maxSoul;
+      AUDIO.playSfx('candle');
       spawnParticles(c.x, c.y - 50, '#ffcf56', 18);
 
       if (c.isBossCandle && wasUnlit && boss && !boss.defeated) {
@@ -1414,13 +1720,16 @@ function triggerInteraction() {
     if (Math.hypot(px - (npc.x + npc.w / 2), py - (npc.y - npc.h / 2)) < 105) {
       if (npc.grantDash && !player.hasDash) {
         player.hasDash = true;
+        AUDIO.playSfx('relic');
         spawnParticles(player.x + player.w / 2, player.y, '#6ee7b7', 22);
-      }
-      if (npc.grantWallAndBeam && !player.hasWallJump) {
+      } else if (npc.grantWallAndBeam && !player.hasWallJump) {
         player.hasWallJump = true;
         player.hasBeam = true;
+        AUDIO.playSfx('relic');
         spawnParticles(player.x + player.w / 2, player.y, '#ffcf56', 25);
         showBanner(t('relicWallMsg'));
+      } else {
+        AUDIO.playSfx('ui');
       }
       updateHUD();
       openDialogue(t(npc.nameKey), t(npc.textKey));
@@ -1430,6 +1739,7 @@ function triggerInteraction() {
 
   for (let tab of lvl.loreTablets) {
     if (Math.hypot(px - tab.x, py - (tab.y - 25)) < 95) {
+      AUDIO.playSfx('ui');
       openDialogue(t(tab.titleKey), t(tab.textKey));
       return;
     }
@@ -1437,10 +1747,13 @@ function triggerInteraction() {
 
   if (lvl.portal && rectIntersect(player, lvl.portal)) {
     if (lvl.portal.requiresScroll && !player.hasDoubleJump) {
+      AUDIO.playSfx('hurt');
       showBanner(t('doorLockedScroll'));
     } else if (lvl.portal.requiresWall && !player.hasWallJump) {
+      AUDIO.playSfx('hurt');
       showBanner(t('doorLockedWall'));
     } else {
+      AUDIO.playSfx('portal');
       loadLevel(lvl.portal.targetLevel);
     }
   }
@@ -1448,6 +1761,7 @@ function triggerInteraction() {
 
 function collectRelic(r) {
   r.collected = true;
+  AUDIO.playSfx('relic');
   spawnParticles(r.x, r.y, '#ffcf56', 25);
   if (r.id === 'cross') {
     player.hasCross = true;
@@ -1473,6 +1787,7 @@ function openDialogue(speaker, text) {
 }
 
 function closeDialogue() {
+  AUDIO.playSfx('ui');
   dialogueOpen = false;
   document.getElementById('dialogueBox').style.display = 'none';
 }
@@ -1553,15 +1868,18 @@ function update() {
         player.vy = CONFIG.physics.jumpForce;
         player.onGround = false;
         player.jumpsLeft = player.hasDoubleJump ? 1 : 0;
+        AUDIO.playSfx('jump');
       } else if (player.hasWallJump && player.onWall !== 0) {
         player.vy = CONFIG.physics.jumpForce * 0.95;
         player.vx = -player.onWall * 9.5;
         player.facing = -player.onWall;
         player.canAirDash = true;
+        AUDIO.playSfx('wallJump');
         spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#f5deb3', 10);
       } else if (player.jumpsLeft > 0) {
         player.vy = CONFIG.physics.jumpForce * 0.92;
         player.jumpsLeft--;
+        AUDIO.playSfx('doubleJump');
         spawnParticles(player.x + player.w / 2, player.y + player.h, '#e6c67c', 12);
       }
     }
@@ -1616,6 +1934,7 @@ function update() {
     if (atkBox && player.attackDir === 'down' && rectIntersect(atkBox, s)) {
       player.vy = -11.8;
       player.canAirDash = true;
+      AUDIO.playSfx('pogo');
       spawnParticles(player.x + player.w / 2, s.y, '#f5deb3', 6);
     } else if (rectIntersect(player, s)) {
       damagePlayer(1, true);
@@ -1649,7 +1968,12 @@ function update() {
         e.hp -= 2;
         e.hurtTimer = 12;
         spawnParticles(e.x + e.w / 2, e.y + e.h / 2, '#ffcf56', 14);
-        if (e.hp <= 0) activeEnemies.splice(j, 1);
+        if (e.hp <= 0) {
+          AUDIO.playSfx('enemyDie');
+          activeEnemies.splice(j, 1);
+        } else {
+          AUDIO.playSfx('hitEnemy');
+        }
         hit = true;
         break;
       }
@@ -1658,6 +1982,7 @@ function update() {
         rectIntersect({ x: b.x - b.r, y: b.y - b.r, w: b.r * 2, h: b.r * 2 }, boss)) {
       boss.hp -= 2;
       boss.hurtTimer = 14;
+      AUDIO.playSfx('hitEnemy');
       spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ffcf56', 16);
       hit = true;
     }
@@ -1696,9 +2021,12 @@ function update() {
       }
 
       if (e.hp <= 0) {
+        AUDIO.playSfx('enemyDie');
         spawnParticles(e.x + e.w / 2, e.y + e.h / 2, '#e04f5f', 18);
         activeEnemies.splice(i, 1);
         continue;
+      } else {
+        AUDIO.playSfx('hitEnemy');
       }
     }
 
@@ -1752,6 +2080,7 @@ function updateBoss(atkBox) {
     if (atkBox && rectIntersect(atkBox, { x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 })) {
       player.soul = Math.min(player.maxSoul, player.soul + 10);
       updateHUD();
+      AUDIO.playSfx('pogo');
       spawnParticles(p.x, p.y, '#e6c67c', 8);
       bossProjectiles.splice(i, 1);
       continue;
@@ -1769,6 +2098,7 @@ function updateBoss(atkBox) {
     boss.hurtTimer = 14;
     player.soul = Math.min(player.maxSoul, player.soul + 15);
     updateHUD();
+    AUDIO.playSfx('hitEnemy');
     spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ffcf56', 14);
     if (!player.onGround) {
       player.vy = -11;
@@ -1785,6 +2115,7 @@ function updateBoss(atkBox) {
   if (boss.hp <= 0) {
     boss.defeated = true;
     document.getElementById('bossHud').style.display = 'none';
+    AUDIO.playSfx('bossDefeat');
     spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ffcf56', 60);
     setTimeout(showEndingCinematic, 1300);
   }
@@ -1839,6 +2170,7 @@ function updateInteractionPrompt() {
 function damagePlayer(amount, respawnAtCandle) {
   player.hp = Math.max(0, player.hp - amount);
   player.invulnTimer = 55;
+  AUDIO.playSfx('hurt');
   spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#e04f5f', 14);
   updateHUD();
 
@@ -1966,14 +2298,12 @@ function draw() {
 
   ctx.restore();
 
-  // Titolo regione (posizionato sotto l'HUD)
   const hudLeftEl = document.querySelector('.hud-left');
   const titleY = hudLeftEl ? Math.round((hudLeftEl.getBoundingClientRect().bottom - gameContainer.getBoundingClientRect().top) * (720 / Math.max(1, gameContainer.getBoundingClientRect().height))) + 24 : 114;
   ctx.fillStyle = 'rgba(230, 198, 124, 0.92)';
   ctx.font = 'bold 15px Georgia';
   ctx.fillText(t(lvl.nameKey), 18, Math.max(106, titleY));
 
-  // Suggerimento comandi tastiera solo se i controlli touch non sono visibili
   const tc = document.getElementById('touchControls');
   if (window.getComputedStyle(tc).display === 'none') {
     ctx.fillStyle = 'rgba(244, 232, 209, 0.55)';
